@@ -1,0 +1,11 @@
+{
+    "projectName": "test001", 
+    "projectID": "6860de6ede09fc2658a450e1", 
+    "syncEnabled": true, 
+    "excludePatterns": [
+        ".vscode", 
+        ".git", 
+        "EggyAPI.lua"
+    ], 
+    "version": "1.0.0"
+}

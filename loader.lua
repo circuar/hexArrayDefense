@@ -2,7 +2,7 @@ local constant = require("constant")
 local game     = require("game")
 local api      = require("api")
 local logger   = require("api").logger
-local json = require("api").json
+local json     = require("api").json
 
 ---显示加载界面
 ---@param player Role 指定玩家
@@ -97,26 +97,18 @@ local showDeleteArchiveUI = function()
 end
 
 
-
-
-local function doLoadSavedGameArchive(target, jsonData)
-    local gameData = json.parse(jsonData) or {}
-
-    for key, value in pairs(game.object) do
-        target[key] = gameData[key] or value
-    end
-end
-
-
-
----加载存档
----如果为空，则加载默认数据
----如果不为空，则加载存档数据
-local function loadSavedGameArchive()
+local function loadGame()
     local gameArchiveJson = api.fetchArchiveData(Player, Enums.ArchiveType.Str, 1003)
-    doLoadSavedGameArchive( game.object.data , gameArchiveJson)
-    logger.info("Game archive loaded successfully")
+    logger.info("Game archive loaded")
+    logger.debug("Game archive data: " .. gameArchiveJson)
+    -- doLoadSavedGameArchive(game.object.data , gameArchiveJson)
+    game.object.init(json.parse(gameArchiveJson))
 end
+
+
+
+
+-- LOAD GAME ===================================================================
 
 
 
@@ -125,16 +117,25 @@ end
 local function doStartNewGame()
     showLoadingUI(Player)
 
+
+    -- 加载游戏数据
     api.setTimeout(function()
-        loadSavedGameArchive()
+        loadGame()
     end, 30)
+
+
 
     api.setTimeout(function()
         logger.info("close main menu")
         api.sendUICustomEvent(Player, constant.UI_HIDE_MAIN_MENU_EVENT, {})
         logger.info("show hud ui")
         api.sendUICustomEvent(Player, constant.UI_SHOW_HUD_EVENT, {})
+        logger.info("register hud listener")
+
+        game.hud.fullUpdate()
+        game.hud.registerListener()
     end, 35)
+
 
 
     api.setTimeout(function()
@@ -142,6 +143,15 @@ local function doStartNewGame()
         local cameraComponent = api.getUnitById(constant.GAME_CAMERA_COMPONENT_ID)
         game.camera.init(cameraComponent)
     end, 40)
+
+    api.setTimeout(function()
+        logger.info("main turret lock init")
+
+        local function handler()
+            game.object.updateMainTurretTowards(game.camera.cameraBindComponent)
+        end
+        api.extra.addFramePreHandler(handler)
+    end, 45)
 
     -- 注册相机手势监听
     api.setTimeout(function()
@@ -161,9 +171,12 @@ local function doStartNewGame()
                 logger.debug("camera move stop")
                 game.camera.ctrlMoveStop()
             end)
-    end, 45)
+    end, 50)
 
-
+    --场景初始化处理
+    api.setTimeout(function()
+        game.scene.gameStartHexRunMotor()
+    end, 80)
 
     api.setTimeout(function()
         hideLoadingUI(Player)
@@ -274,7 +287,7 @@ local function init()
 
     api.registerGlobalCustomEventListener(constant.UI_CANCEL_DELETE_ARCHIVE_EVENT, function()
         logger.info("cancel delete saved game data")
-        api.sendUICustomEvent(Player,constant.UI_HIDE_DELETE_ARCHIVE_EVENT, {})
+        api.sendUICustomEvent(Player, constant.UI_HIDE_DELETE_ARCHIVE_EVENT, {})
     end)
 end
 

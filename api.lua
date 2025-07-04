@@ -9,7 +9,7 @@ function api.getPlayer(index)
 end
 
 --- 获取所有有效的玩家对象列表
---- @return table<Role> 玩家对象列表
+--- @return Role[] 玩家对象数组
 function api.getPlayers()
     return GameAPI.get_all_valid_roles()
 end
@@ -102,6 +102,14 @@ function api.setCameraProperties(player, properties)
     end
 end
 
+---添加直线运动
+---@param unit Unit 单位
+---@param vec Vector3 速度向量
+---@param localAxis boolean 是否局部空间
+function api.addLinearMotor(unit, vec, time, localAxis)
+    unit.add_linear_motor(vec, time, localAxis)
+end
+
 ---设置组件直线运动器速度向量
 ---@param unit Unit
 ---@param index integer
@@ -132,10 +140,41 @@ function api.disableMotor(unit, index)
     unit.disable_motor(index)
 end
 
+---创建特效
+---@param effectKey integer 特效编号
+---@param pos Vector3 特效创建位置
+---@param rotation Quaternion? 旋转
+---@param zoom Fixed? 特效缩放
+---@param duration Fixed? 持续时间
+---@param soundEnabled boolean? 开启声音，默认关闭
+function api.createVFX(effectKey, pos, rotation, zoom, duration, speed, soundEnabled)
+    GameAPI.play_sfx_by_key(
+        effectKey,
+        pos,
+        rotation or math.Quaternion(0, 0, 0),
+        zoom or 1,
+        duration or 5,
+        speed or 1,
+        soundEnabled or false
+    )
+end
+
+---设置单位旋转角
+---@param unit Unit
+---@param rotation Quaternion
+function api.setUnitRotation(unit, rotation)
+    unit.set_orientation(rotation)
+end
+
+function api.setFrameHandler(preHandler, afterHandler)
+    LuaAPI.set_tick_handler(preHandler, afterHandler)
+end
+
 -- EXTRA =======================================================================
 local vector = {}
 local json = {}
 local logger = {}
+local extra = {}
 
 -- vector:
 
@@ -143,15 +182,13 @@ local logger = {}
 --- @param v Vector3
 --- @return Vector3 单位向量
 function vector.normalizeVec(v)
-    local mag = math.sqrt(v.x * v.x + v.y * v.y + v.z * v.z)
+    local x, y, z = v.x, v.y, v.z
+    local mag = x * x + y * y + z * z
     if mag == 0 then
         return math.Vector3(0, 0, 0)
     end
-    return math.Vector3(
-        v.x / mag,
-        v.y / mag,
-        v.z / mag
-    )
+    mag = math.sqrt(mag)
+    return math.Vector3(x / mag, y / mag, z / mag)
 end
 
 --- 标量线性插值（Lerp）
@@ -174,6 +211,50 @@ function vector.lerpVec3(a, b, t)
         vector.lerp(a.y, b.y, t),
         vector.lerp(a.z, b.z, t)
     )
+end
+
+--- 计算x-z平面内向量与x正向朝向z正向旋转的夹角（度）
+--- @param v Vector3
+--- @return number
+function vector.angleWithX(v)
+    local angle = math.atan2(v.z, v.x) * 180 / math.pi
+    if angle < 0 then
+        angle = angle + 360
+    end
+    return angle
+end
+
+local function normalizeAngle(angle)
+    -- 将角度归一到 [-PI, PI]
+    local twoPi = math.pi * 2
+    angle = (angle + math.pi) % twoPi - math.pi
+    return angle
+end
+
+function vector.quaternionBetween(a, b)
+    -- 1. 计算偏航差
+    local a_yaw = a.yaw
+    local b_yaw = b.yaw
+    local delta_yaw = normalizeAngle(b_yaw - a_yaw)
+
+    -- 绕 Y 轴先旋转
+    local yawQuat = math.Quaternion(0, delta_yaw, 0)
+
+    -- 将向量 a 旋转到中间向量 a2
+    local a2 = yawQuat * a
+    a2:normalize()
+
+    -- 2. 计算俯仰差
+    local a2_pitch = a2.pitch
+    local b_pitch = b.pitch
+    local delta_pitch = normalizeAngle(b_pitch - a2_pitch)
+
+    -- 绕本地 X 轴（右轴）旋转
+    local pitchQuat = math.Quaternion(delta_pitch, 0, 0)
+
+    -- 最终四元数：先偏航后俯仰
+    local finalQuat = pitchQuat * yawQuat
+    return finalQuat
 end
 
 -- json:
@@ -394,7 +475,7 @@ end
 --- @throws 当JSON字符串存在多余内容时抛出错误
 function json.parse(str)
     if str == nil or str == "" then
-        return nil
+        return {}
     end
 
     local res, i = json.parseValue(str, 1)
@@ -402,7 +483,6 @@ function json.parse(str)
     if i <= #str then error('Trailing garbage at ' .. i) end
     return res
 end
-
 
 -- logger:
 
@@ -432,8 +512,86 @@ function logger.warn(...) log(logger.levels.WARN, ...) end
 
 function logger.error(...) log(logger.levels.ERROR, ...) end
 
+-- extra:
+
+
+---将一个组件旋转到朝向指定向量方向
+---@param unit Unit 单位
+---@param towards Vector3 指向向量
+---@param reference Vector3? 参考向量
+function extra.setUnitTowardsTo(unit, towards, reference)
+    local referenceVec = nil
+    if reference == nil then
+        referenceVec = math.Vector3(1, 0, 0)
+    else
+        referenceVec = vector.normalizeVec(reference)
+    end
+
+    local towardsVec = vector.normalizeVec(towards)
+
+    api.setUnitRotation(unit, vector.quaternionBetween(referenceVec, towardsVec))
+end
+
+local framePreHandlerList = {}
+local frameAfterHandlerList = {}
+local tickCallbackEnabled = false
+
+local function startTick()
+    tickCallbackEnabled = true
+    local function pre()
+        for _, value in ipairs(framePreHandlerList) do
+            value()
+        end
+    end
+
+    local function after()
+        for _, value in ipairs(frameAfterHandlerList) do
+            value()
+        end
+    end
+
+    api.setFrameHandler(pre, after)
+end
+
+local function stopTick()
+    tickCallbackEnabled = false
+    api.setFrameHandler(nil, nil)
+end
+
+local function frameHandlerRunCheck()
+    if #framePreHandlerList == 0 and #frameAfterHandlerList == 0 then
+        stopTick()
+    end
+end
+
+function extra.addFramePreHandler(handler)
+    framePreHandlerList[#framePreHandlerList + 1] = handler
+    if not tickCallbackEnabled then
+        startTick()
+    end
+    return #framePreHandlerList + 1
+end
+
+function extra.addFrameAfterHandler(handler)
+    frameAfterHandlerList[#frameAfterHandlerList + 1] = handler
+    if not tickCallbackEnabled then
+        startTick()
+    end
+end
+
+function extra.unRegisterPreHandler(index)
+    table.remove(framePreHandlerList, index)
+    frameHandlerRunCheck()
+end
+
+function extra.unRegisterAfterHandler(index)
+    table.remove(frameAfterHandlerList, index)
+    frameHandlerRunCheck()
+end
+
 api.vector = vector
 api.json = json
 api.logger = logger
+api.extra = extra
 
 return api

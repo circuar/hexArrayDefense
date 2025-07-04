@@ -50,6 +50,18 @@ return {
     UI_BRIDGE_SET_CURSOR_STATUS = "UI_BRI_6",
     UI_BRIDGE_UPDATE_CAMERA_POS = "UI_BRI_7",
     UI_BRIDGE_SET_SELF_INFO = "UI_BRI_8",
-    UI_BRIDGE_SET_MATRIX_INFO = "UI_BRI_9"
+    UI_BRIDGE_SET_MATRIX_INFO = "UI_BRI_9",
+    UI_BRIDGE_SET_AUTO_AIM_STATUS = "UI_BRI_10",
 
+
+    UI_SWITCH_AUTO_AIM_STATUS_EVENT = "UI_EVENT_SWITCH_AUTO_AIM_STATUS",
+
+    --HUD status enum
+    ---@enum hudStatus
+    cursorStatusEnum = {
+        NORMAL = "NORMAL",
+        LOCKED = "LOCKED",
+        WARN = "WARN",
+        URGENT = "URGENT"
+    }
 }

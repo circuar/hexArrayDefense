@@ -106,143 +106,36 @@ for index, value in ipairs(baseHexComponentId) do
     baseHexComponent[index] = api.getUnitById(value)
 end
 
+---@class TurretComponentData
+---@field base Unit
+---@field rotationPart Unit
+---@field towardsReferenceVec Vector3
+---@field bulletCreatePoint Vector3
+---@field bulletTemplateIndex integer
 
-
-
-
-
--- 防御塔模板数据
-local turretTemplateMetaData = {
+---松散数组
+---@type TurretComponentData[]
+local turretComponentData = {
+    --无运动器，未绑定
     [1] = {
-        templateId = 1466853682,
-        extraComponents = {
-            yawAxis = {
-                type = "common",
-                templateId = 1079155529,
-                offset = math.Quaternion(0, 6.5, 0),
-            },
-            pitchAxis = {
-                type = "common",
-                templateId = 1413387284,
-                offset = math.Quaternion(2.35, 6, 0),
-            }
-        }
+        base = api.getUnitById(1466853682),
+        rotationPart = api.getUnitById(1413387284),
+        rotationPartBaseOffset = math.Vector3(0, 5, 0),
+        towardsReferenceVec = math.Vector3(1, 0, 0),
+        bulletCreatePoint = math.Vector3(0, 5, 13.5),
+        bulletTemplateIndex = 1
     },
-    [2] = {
-        templateId = 1466853682,
-        extraComponents = {
-            yawAxis = {
-                type = "common",
-                templateId = 1079155529,
-                offset = math.Quaternion(0, 6.5, 0),
-            },
-            pitchAxis = {
-                type = "common",
-                templateId = 1413387284,
-                offset = math.Quaternion(2.35, 6, 0),
-            }
-        }
-    },
-    [3] = {
-        templateId = 1466853682,
-        extraComponents = {
-            yawAxis = {
-                type = "common",
-                templateId = 1079155529,
-                offset = math.Quaternion(0, 6.5, 0),
-            },
-            pitchAxis = {
-                type = "common",
-                templateId = 1413387284,
-                offset = math.Quaternion(2.35, 6, 0),
-            }
-        }
-    },
-    [4] = {
-        templateId = 1466853682,
-        extraComponents = {
-            yawAxis = {
-                type = "common",
-                templateId = 1079155529,
-                offset = math.Quaternion(0, 6.5, 0),
-            },
-            pitchAxis = {
-                type = "common",
-                templateId = 1413387284,
-                offset = math.Quaternion(2.35, 6, 0),
-            }
-        }
-    },
-    [5] = {
-        templateId = 1466853682,
-        extraComponents = {
-            yawAxis = {
-                type = "common",
-                templateId = 1079155529,
-                offset = math.Quaternion(0, 6.5, 0),
-            },
-            pitchAxis = {
-                type = "common",
-                templateId = 1413387284,
-                offset = math.Quaternion(2.35, 6, 0),
-            }
-        }
-    },
-    [6] = {
-        templateId = 1466853682,
-        extraComponents = {
-            yawAxis = {
-                type = "common",
-                templateId = 1079155529,
-                offset = math.Quaternion(0, 6.5, 0),
-            },
-            pitchAxis = {
-                type = "common",
-                templateId = 1413387284,
-                offset = math.Quaternion(2.35, 6, 0),
-            }
-        }
-    },
-    [7] = {
-        templateId = 1466853682,
-        extraComponents = {
-            yawAxis = {
-                type = "common",
-                templateId = 1079155529,
-                offset = math.Quaternion(0, 6.5, 0),
-            },
-            pitchAxis = {
-                type = "common",
-                templateId = 1413387284,
-                offset = math.Quaternion(2.35, 6, 0),
-            }
-        }
-    }
+    -- [2] = {
+    --     base = api.getUnitById(),
+    --     rotationPart = api.getUnitById(),
+    --     towardsReferenceVec = math.Vector3(),
+    --     bulletCreatePoint = math.Vector3(),
+    --     bulletTemplateIndex = 1
+    -- },
+
 }
 
--- 防御塔模板组件
-local turretTemplateComponent = {}
-
--- 初始化
-
-for index, data in ipairs(turretTemplateMetaData) do
-    local cmpData = {}
-    cmpData.base = api.getUnitById(data.templateId)
-    cmpData.extra = {}
-    for key, value in pairs(data.extraComponents) do
-        cmpData.extra[key] = api.getUnitById(value.templateId)
-    end
-    turretTemplateComponent[index] = cmpData
-end
-
-
-
-
-
 return {
-    baseHexComponentId,
-    baseHexComponent,
-    turretTemplateMetaData,
-    turretTemplateComponent,
-
+    baseHexComponent = baseHexComponent,
+    turretComponentData = turretComponentData
 }

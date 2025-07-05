@@ -146,11 +146,7 @@ local function doStartNewGame()
 
     api.setTimeout(function()
         logger.info("main turret lock init")
-
-        local function handler()
-            game.object.updateMainTurretTowards(game.camera.cameraBindComponent)
-        end
-        api.extra.addFramePreHandler(handler)
+        game.object.enableMainTurretTowardsToCursor()
     end, 45)
 
     -- 注册相机手势监听
@@ -176,6 +172,7 @@ local function doStartNewGame()
     --场景初始化处理
     api.setTimeout(function()
         game.scene.gameStartHexRunMotor()
+        game.scene.initEnemyUnitGenerator()
     end, 80)
 
     api.setTimeout(function()
@@ -268,6 +265,7 @@ local function init()
         PlayerSettings.enableVfx = not PlayerSettings.enableVfx
         refreshSettingsUI()
         uploadPlayerSettings(Player)
+        game.scene.setVfxRenderingStatus(PlayerSettings.enableVfx)
     end)
 
     --注册广告设置开关监听器

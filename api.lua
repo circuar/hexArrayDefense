@@ -119,6 +119,16 @@ function api.setLinerMotorVelocity(unit, index, vector, localAxis)
     unit.set_linear_motor_velocity(index, vector, localAxis)
 end
 
+---添加环绕运动
+---@param unit Unit 单位
+---@param target Unit 环绕目标
+---@param angularVelocity Vector3 角速度
+---@param duration Fixed 时间
+---@param followRotation  boolean? 是否跟随旋转
+function api.addSurroundMotor(unit, target, angularVelocity, duration, followRotation)
+    unit.add_surround_motor(target, angularVelocity, duration, followRotation)
+end
+
 ---获取组件坐标
 ---@param unit Unit
 ---@return Vector3
@@ -146,17 +156,29 @@ end
 ---@param rotation Quaternion? 旋转
 ---@param zoom Fixed? 特效缩放
 ---@param duration Fixed? 持续时间
+---@param speed Fixed? 播放速度
 ---@param soundEnabled boolean? 开启声音，默认关闭
 function api.createVFX(effectKey, pos, rotation, zoom, duration, speed, soundEnabled)
     GameAPI.play_sfx_by_key(
         effectKey,
         pos,
         rotation or math.Quaternion(0, 0, 0),
-        zoom or 1,
-        duration or 5,
-        speed or 1,
+        zoom or 1.0,
+        duration or 5.0,
+        speed or 1.0,
         soundEnabled or false
     )
+end
+
+---创建绑定特效
+---@param vfxKey integer 特效编号
+---@param unit Unit 绑定到的组件
+---@param socket Enums.ModelSocket 挂载点
+---@param zoom number 缩放倍数
+---@param duration number 持续时间
+---@param bindType Enums.BindType 绑定类型
+function api.createVFXWithSocket(vfxKey, unit, socket, zoom, duration, bindType)
+    GameAPI.create_sfx_with_socket(vfxKey, unit, socket, zoom, duration, bindType)
 end
 
 ---设置单位旋转角
@@ -166,8 +188,32 @@ function api.setUnitRotation(unit, rotation)
     unit.set_orientation(rotation)
 end
 
+---注册帧回调函数
+---@param preHandler function 帧前回调函数
+---@param afterHandler function 帧后回调函数
 function api.setFrameHandler(preHandler, afterHandler)
     LuaAPI.set_tick_handler(preHandler, afterHandler)
+end
+
+---创建组件
+---@param unitKey UnitKey
+---@param position Vector3
+---@param rotation Quaternion
+---@param zoom Vector3
+---@param player Role?
+---@return Obstacle
+function api.createComponent(unitKey, position, rotation, zoom, player)
+    return GameAPI.create_obstacle(unitKey, position, rotation, zoom, player)
+end
+
+---创建组件组
+---@param unitGroupKey UnitGroupKey
+---@param position Vector3
+---@param rotation Quaternion
+---@param player Role?
+---@return UnitGroup
+function api.createComponentGroup(unitGroupKey, position, rotation, player)
+    return GameAPI.create_unit_group(unitGroupKey, position, rotation, player)
 end
 
 -- EXTRA =======================================================================
@@ -224,37 +270,71 @@ function vector.angleWithX(v)
     return angle
 end
 
-local function normalizeAngle(angle)
-    -- 将角度归一到 [-PI, PI]
-    local twoPi = math.pi * 2
-    angle = (angle + math.pi) % twoPi - math.pi
-    return angle
+---计算从一个向量旋转到另一个向量的旋转角
+---旋转顺序为：yaw，pitch
+---@param a any
+---@param b any
+---@return Quaternion
+function vector.rotationBetweenVec(a, b)
+    -- xz 平面投影
+    local a_xz = math.Vector3(a.x, 0, a.z)
+    local b_xz = math.Vector3(b.x, 0, b.z)
+
+    -- 避免零向量
+    if a_xz:length() == 0 then a_xz = math.Vector3(0, 0, 1) end
+    if b_xz:length() == 0 then b_xz = math.Vector3(0, 0, 1) end
+
+    a_xz:normalize()
+    b_xz:normalize()
+
+    -- 计算 yaw（绕 y 轴），并取反以“逆时针为负”
+    local dot_xz    = a_xz:dot(b_xz)
+    local cross_y   = a_xz:cross(b_xz).y
+    local rawYaw    = math.atan2(cross_y, dot_xz)
+    local yaw       = -rawYaw
+
+    -- 绕 y 轴先旋转 yaw 后的新向量 a_rotated
+    local s, c      = math.sin(yaw), math.cos(yaw)
+    local a_rotated = math.Vector3(
+        a.x * c - a.z * s,
+        a.y,
+        a.x * s + a.z * c
+    )
+
+    -- 计算 pitch：在包含 y 轴的平面内，从 a_rotated 指向 b 的夹角
+    local a_dir     = math.Vector3(a_rotated.x, a_rotated.y, a_rotated.z)
+    local b_dir     = math.Vector3(b.x, b.y, b.z)
+    a_dir:normalize()
+    b_dir:normalize()
+
+    local dot3 = a_dir:dot(b_dir)
+    local cross3 = a_dir:cross(b_dir)
+    -- 用 a_dir 与世界上方向的“右向量”决定 pitch 方向
+    local right = a_dir:cross(math.Vector3(0, 1, 0))
+    local signPitch = (right:dot(cross3) < 0) and -1 or 1
+    local pitch = math.acos(math.max(-1, math.min(1, dot3))) * signPitch
+
+    -- 返回四元数（pitch, yaw, roll=0）
+    return math.Quaternion(-pitch, -yaw, 0)
 end
 
-function vector.quaternionBetween(a, b)
-    -- 1. 计算偏航差
-    local a_yaw = a.yaw
-    local b_yaw = b.yaw
-    local delta_yaw = normalizeAngle(b_yaw - a_yaw)
-
-    -- 绕 Y 轴先旋转
-    local yawQuat = math.Quaternion(0, delta_yaw, 0)
-
-    -- 将向量 a 旋转到中间向量 a2
-    local a2 = yawQuat * a
-    a2:normalize()
-
-    -- 2. 计算俯仰差
-    local a2_pitch = a2.pitch
-    local b_pitch = b.pitch
-    local delta_pitch = normalizeAngle(b_pitch - a2_pitch)
-
-    -- 绕本地 X 轴（右轴）旋转
-    local pitchQuat = math.Quaternion(delta_pitch, 0, 0)
-
-    -- 最终四元数：先偏航后俯仰
-    local finalQuat = pitchQuat * yawQuat
-    return finalQuat
+--- 保持方向，将向量长度设置为指定值
+--- @param v Vector3 原向量
+--- @param length number 目标长度
+--- @return Vector3 方向不变、长度为 newLen 的新向量
+function vector.setVectorLength(v, length)
+    -- 拷贝一个向量，避免修改原向量
+    local out = math.Vector3(v.x, v.y, v.z)
+    -- normalize() 会把 out 单位化，并返回原来的长度
+    local oldLen = out:normalize()
+    -- 如果原向量不是零向量，按比例缩放
+    if oldLen > 0 then
+        out.x = out.x * length
+        out.y = out.y * length
+        out.z = out.z * length
+    end
+    -- 返回新的向量
+    return out
 end
 
 -- json:
@@ -529,7 +609,7 @@ function extra.setUnitTowardsTo(unit, towards, reference)
 
     local towardsVec = vector.normalizeVec(towards)
 
-    api.setUnitRotation(unit, vector.quaternionBetween(referenceVec, towardsVec))
+    api.setUnitRotation(unit, vector.rotationBetweenVec(referenceVec, towardsVec))
 end
 
 local framePreHandlerList = {}
@@ -553,16 +633,6 @@ local function startTick()
     api.setFrameHandler(pre, after)
 end
 
-local function stopTick()
-    tickCallbackEnabled = false
-    api.setFrameHandler(nil, nil)
-end
-
-local function frameHandlerRunCheck()
-    if #framePreHandlerList == 0 and #frameAfterHandlerList == 0 then
-        stopTick()
-    end
-end
 
 function extra.addFramePreHandler(handler)
     framePreHandlerList[#framePreHandlerList + 1] = handler
@@ -581,17 +651,113 @@ end
 
 function extra.unRegisterPreHandler(index)
     table.remove(framePreHandlerList, index)
-    frameHandlerRunCheck()
 end
 
 function extra.unRegisterAfterHandler(index)
     table.remove(frameAfterHandlerList, index)
-    frameHandlerRunCheck()
+end
+
+--random:
+---@class random
+---@field seed number
+local random   = {}
+random.__index = random
+
+local MASK32   = 0xFFFFFFFF
+
+--- 构造一个 Random 实例
+--- @param seed integer? 初始种子（可选，不传则用61）
+--- @return random
+function random.new(seed)
+    local self = setmetatable({}, random)
+    seed = seed or 61
+
+    self.state = (seed ~= 0) and (seed & MASK32) or 1
+    return self
+end
+
+--- 重置种子
+--- @param seed integer 新种子
+function random:setSeed(seed)
+    seed = seed & MASK32
+    self.state = (seed ~= 0) and seed or 1
+end
+
+--- 核心：生成下一个 bits 位随机数
+--- @param bits integer 欲取出的位数 (1–32)
+--- @return integer  [0, 2^bits)
+function random:next(bits)
+    local x = self.state
+    -- xor shift 32 算法
+    x = (x ~ ((x << 13) & MASK32)) & MASK32
+    x = (x ~ (x >> 17)) & MASK32
+    x = (x ~ ((x << 5) & MASK32)) & MASK32
+    self.state = x
+
+    -- 取高 bits 位
+    if bits == 32 then
+        return x
+    else
+        return (x >> (32 - bits)) & ((1 << bits) - 1)
+    end
+end
+
+--- 生成 32 位随机整数（[0,2^32)）
+--- @return integer
+function random:nextInt()
+    return self:next(32)
+end
+
+--- 生成 [0, bound) 之间的均匀随机整数
+--- @param bound integer 上界（>0）
+--- @return integer
+function random:nextIntBound(bound)
+    if bound <= 0 then error("bound must be positive") end
+    -- 若为 2 的幂，直接掩码
+    if (bound & (bound - 1)) == 0 then
+        return self:next(31) & (bound - 1)
+    end
+    -- 拒绝采样保证无偏
+    while true do
+        local bits = self:next(31)
+        local val  = bits % bound
+        if bits - val + (bound - 1) >= 0 then
+            return val
+        end
+    end
+end
+
+--- 生成 [0.0, 1.0) 双精度浮点数
+--- @return number
+function random:nextDouble()
+    -- 用 32 位随机数作分子，除以 2^32
+    return self:next(32) / (2 ^ 32)
+end
+
+--- 生成 [0.0, 1.0) 单精度浮点数
+--- @return number
+function random:nextFloat()
+    return self:next(24) / (2 ^ 24)
+end
+
+--- 生成布尔值
+--- @return boolean
+function random:nextBoolean()
+    return self:next(1) == 1
+end
+
+--- 生成一个“64 位”随机整数（安全到 53 位）
+--- @return number
+function random:nextLong()
+    -- 用 21 位高随机 + 32 位低随机，合成最多 53 位
+    local high = self:next(21)
+    local low  = self:next(32)
+    return high * (2 ^ 32) + low
 end
 
 api.vector = vector
 api.json = json
 api.logger = logger
 api.extra = extra
-
+api.random = random
 return api

@@ -119,11 +119,14 @@ local turretComponentData = {
     --无运动器，未绑定
     [1] = {
         base = api.getUnitById(1466853682),
-        rotationPart = api.getUnitById(1413387284),
+        rotationPart = api.getUnitById(1812918448),
         rotationPartBaseOffset = math.Vector3(0, 5, 0),
-        towardsReferenceVec = math.Vector3(1, 0, 0),
+        towardsReferenceVec = math.Vector3(0, 0, 1),
         bulletCreatePoint = math.Vector3(0, 5, 13.5),
-        bulletTemplateIndex = 1
+        bulletTemplateIndex = 1,
+        isMainTurret = true,
+        atkMethodType = 1,
+        atkCoolDown = 0.3,
     },
     -- [2] = {
     --     base = api.getUnitById(),
@@ -135,7 +138,32 @@ local turretComponentData = {
 
 }
 
+
+local enemyUnitTemplate = {
+    [1] = {
+        presetId = 1073823833,
+        towardsReferenceVector = math.Vector3(1, 0, 0),
+        defaultZoom = math.Vector3(1.92, 0.17, 2.00)
+    },
+}
+
+local enemyUnitProperties = {
+    [1] = {
+        templateUnitIndex = 1,
+        atkMethodType = 1,
+        damageValuePerBullet = 20,
+        maxHealthValue = 400,
+        maxDefenseValue = 300,
+
+    }
+}
+
+
+
+
 return {
     baseHexComponent = baseHexComponent,
-    turretComponentData = turretComponentData
+    turretComponentData = turretComponentData,
+    enemyUnitTemplate = enemyUnitTemplate,
+    enemyUnitProperties = enemyUnitProperties
 }

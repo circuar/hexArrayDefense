@@ -1,6 +1,7 @@
 local loader    = require("loader")
 local api       = require("api")
 local logger    = require("api").logger
+
 -- 全局运行时变量
 ---@type Role
 Player          = nil

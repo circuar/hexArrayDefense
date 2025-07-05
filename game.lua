@@ -12,7 +12,6 @@ local scene    = {}
 
 -- 场景单位=====================================================================
 -- 游戏数据，runtime & save data
-
 object.data = {
     --游戏时长（秒）
     timeCount = 0,
@@ -54,18 +53,32 @@ object.data = {
 
 }
 
+---@class EnemyUnitData
+---@field base Unit
+---@field centerComponent Unit
+---@field templateIndex integer
+---@field currentHealth integer
+---@field currentDefense integer
+---@field maxHealth integer
+---@field maxDefense integer
+
 ---敌方单位数组
----@type Unit[]
-object.enemyObjectArray = {}
+---@type EnemyUnitData[]
+object.enemyUnitArray = {}
 ---阵基组件数组
 ---@type Unit[]
 object.baseHexComponent = {}
 
-
-
-
 -- 炮台组件数据对象数组
 object.turretComponentData = {}
+
+-- 主炮台朝向光标帧更新处理器索引
+object.mainTurretCursorFrmHandlerIndex = nil
+
+
+object.enemyUnitTemplate = {}
+
+object.enemyUnitProperties = {}
 
 function object.loadArchiveData(data)
     for key, value in pairs(object.data) do
@@ -80,6 +93,8 @@ function object.init(archiveData)
     ---@type Unit[]
     object.baseHexComponent = resource.baseHexComponent
     object.turretComponentData = resource.turretComponentData
+    object.enemyUnitTemplate = resource.enemyUnitTemplate
+    object.enemyUnitProperties = resource.enemyUnitProperties
     -- 防御塔下移20（-60）
     for i = 2, #object.baseHexComponent, 1 do
         local curComp = object.baseHexComponent[i]
@@ -124,7 +139,20 @@ function object.calHexArrayIndexMaxByLayer(layer)
     return 3 * layer ^ 2 - 3 * layer + 1;
 end
 
-function object.setTurretTowards(turretComponentDataIndex, targetPos)
+-- 敌方单位的等级和游戏等级的关系
+function object.getEnemyTemplateMinIndexByLevel()
+    return 1
+end
+
+function object.getEnemyTemplateMaxIndexByLevel()
+    return 1
+end
+
+---设置炮塔指向
+---@param turretComponentDataIndex integer 索引
+---@param targetPos Vector3 目标位置
+---@param minDistanceLimit number? 最小水平距离限制
+function object.setTurretTowards(turretComponentDataIndex, targetPos, minDistanceLimit)
     -- 获取旋转组件
 
     local turretCompData = object.turretComponentData[turretComponentDataIndex]
@@ -135,48 +163,35 @@ function object.setTurretTowards(turretComponentDataIndex, targetPos)
         return
     end
 
-    api.extra.setUnitTowardsTo(turretRotationComp, targetPos - (api.positionOf(turretCompData.rotationPart)),
-        turretCompData.towardsReferenceVec)
+    local towardsVec = targetPos - (api.positionOf(turretCompData.rotationPart))
+
+    local xzVector = math.Vector3(towardsVec.x, 0, towardsVec.z)
+    local constrainedXzVector = api.vector.setVectorLength(
+        xzVector,
+        math.max(
+            minDistanceLimit or 10,
+            xzVector:length()
+        )
+    )
+    local constrainedTowardsVec = math.Vector3(constrainedXzVector.x, towardsVec.y, constrainedXzVector.z)
+
+    api.extra.setUnitTowardsTo(turretRotationComp, constrainedTowardsVec, turretCompData.towardsReferenceVec)
 end
 
-function object.updateMainTurretTowards(target)
-    object.setTurretTowards(1, api.positionOf(target))
+function object.enableMainTurretTowardsToCursor()
+    local function handler()
+        object.setTurretTowards(1, api.positionOf(camera.cameraBindComponent), constant.MAIN_TURRET_MIN_ATK_DISTANCE)
+    end
+    object.mainTurretLockToCursorFrameHandlerIndex = api.extra.addFramePreHandler(handler)
 end
 
+function object.createEnemyUnit(templateIndex, position, rotation)
+    local templateData = object.enemyUnitTemplate[templateIndex]
+    return api.createComponent(templateData.presetId, position, rotation, templateData.defaultZoom)
+end
 
 -- test
-object.enemyObjectArray[1] = api.getUnitById(1912830340)
-
-
--- 帧===========================================================================
--- frame.tickPreHandlerList = {}
--- frame.tickAfterHandlerList = {}
-
--- ---设置帧开始时的回调
--- ---@param callback function
--- ---@return integer
--- function frame.addPreTickHandler(callback)
---     local pointer = #frame.tickPreHandlerList + 1
---     frame.tickPreHandlerList[pointer] = callback
---     return pointer
--- end
-
--- ---设置帧结束时的回调
--- ---@param callback function
--- ---@return integer
--- function frame.addAfterTickHandler(callback)
---     local pointer = #frame.tickAfterHandlerList + 1
---     frame.tickAfterHandlerList[pointer] = callback
---     return pointer
--- end
-
--- function frame.cancelPreCallback(index)
---     table.remove(frame.tickPreHandlerList, index)
--- end
-
--- function frame.cancelAfterCallback(index)
---     table.remove(frame.tickAfterHandlerList, index)
--- end
+-- object.enemyUnitArray[1].base = api.getUnitById(1912830340)
 
 --游戏相机======================================================================
 
@@ -286,7 +301,7 @@ end
 ---@param startPos Vector3
 ---@param endPos Vector3
 function camera.stepSmoothMove(startPos, endPos, duration)
-    if (endPos - startPos):length() < 0.1 then
+    if (endPos - startPos):length() < 0.5 then
         return
     end
 
@@ -324,9 +339,9 @@ function camera.ctrlMoveStop()
 
     if object.data.gameSettings.autoAimEnabled then
         -- 搜索敌方单位
-        for _, value in ipairs(object.enemyObjectArray) do
-            if (api.positionOf(camera.cameraBindComponent) - api.positionOf(value)):length() < 15 then
-                camera.lockToUnit(value)
+        for _, value in ipairs(object.enemyUnitArray) do
+            if (api.positionOf(camera.cameraBindComponent) - api.positionOf(value.base)):length() < 15 then
+                camera.lockToUnit(value.base)
                 break
             end
         end
@@ -413,6 +428,48 @@ function hud.fullUpdate()
 end
 
 -- scene =======================================================================
+scene.random = api.random.new(666)
+scene.vfxRenderApiExport = {
+    ---创建特效
+    ---@param effectKey integer 特效编号
+    ---@param pos Vector3 特效创建位置
+    ---@param rotation Quaternion? 旋转
+    ---@param zoom Fixed? 特效缩放
+    ---@param duration Fixed? 持续时间
+    ---@param speed Fixed? 播放速度
+    ---@param soundEnabled boolean? 开启声音，默认关闭
+    createVfxApi = function(effectKey, pos, rotation, zoom, duration, speed, soundEnabled)
+        api.createVFX(effectKey, pos, rotation, zoom, duration, speed, soundEnabled)
+    end,
+    ---创建绑定特效
+    ---@param vfxKey integer 特效编号
+    ---@param unit Unit 绑定到的组件
+    ---@param socket Enums.ModelSocket 挂载点
+    ---@param zoom number 缩放倍数
+    ---@param duration number 持续时间
+    ---@param bindType Enums.BindType 绑定类型
+    createVfxWithSocketApi = function(vfxKey, unit, socket, zoom, duration, bindType)
+        api.createVFXWithSocket(vfxKey, unit, socket, zoom, duration, bindType)
+    end
+}
+scene.vfxRender = {
+    createVfx = scene.vfxRenderApiExport.createVfxApi,
+    createVfxWithSocket = scene.vfxRenderApiExport.createVfxWithSocketApi
+}
+
+
+---设置场景特效状态
+---@param status boolean
+function scene.setVfxRenderingStatus(status)
+    if status then
+        scene.vfxRender.createVfx = scene.vfxRenderApiExport.createVfxApi
+        scene.vfxRender.createVfxWithSocket = scene.vfxRenderApiExport.createVfxWithSocketApi
+    else
+        scene.vfxRender.createVfx = function() end
+        scene.vfxRender.createVfxWithSocket = function() end
+    end
+end
+
 function scene.gameStartHexRunMotor()
     local iterationMaxIndex = object.calHexArrayIndexMaxByLayer(object.data.layer)
     local delayOffset = 0
@@ -426,6 +483,98 @@ function scene.gameStartHexRunMotor()
         ---@diagnostic disable-next-line: cast-local-type
         delayOffset = math.tointeger(delayOffset + delayOffsetStep)
     end
+end
+
+function scene.generateEnemyUnit()
+    logger.debug("start enemy unit generate")
+    local minEnemyUnitTemplateIndex = object.getEnemyTemplateMinIndexByLevel()
+    local maxEnemyUnitTemplateIndex = object.getEnemyTemplateMaxIndexByLevel()
+    local scope = maxEnemyUnitTemplateIndex - minEnemyUnitTemplateIndex + 1
+
+    local generateIndex = scene.random:nextInt() % scope + minEnemyUnitTemplateIndex
+    local height = constant.GLOBAL_BASE_HEIGHT
+    local centerDistance = constant.ENEMY_GENERATE_CENTER_DISTANCE
+
+    -- 随机正方形分布
+    local center = math.Vector3(scene.random:nextFloat() * 2 - 1, 0, scene.random:nextFloat() * 2 - 1)
+
+    -- 求环绕圆心坐标
+    center = api.vector.normalizeVec(center)
+    center = center * centerDistance
+    center.y = height
+
+    -- 求环绕圆心向量
+    local radiusVec = center - math.Vector3(0, height, 0)
+    radiusVec.y = 0
+
+    -- 求敌方单位创建位置
+    local initialPos = radiusVec * 3
+    initialPos.y = height
+
+    -- 初始朝向
+    local isClockwise = scene.random:nextBoolean()
+    local initialTowards = nil
+    local angularVelocity = nil
+    if isClockwise then
+        initialTowards = math.Vector3(radiusVec.z, 0, -radiusVec.x)
+        angularVelocity = math.Vector3(0, constant.ENEMY_ANGULAR_SPEED_RATE, 0)
+    else
+        initialTowards = math.Vector3(-radiusVec.z, 0, radiusVec.x)
+        angularVelocity = math.Vector3(0, -constant.ENEMY_ANGULAR_SPEED_RATE, 0)
+    end
+
+    local enemyUnitTemplate = object.enemyUnitTemplate[generateIndex]
+    local rotation = api.vector.rotationBetweenVec(enemyUnitTemplate.towardsReferenceVector, initialTowards)
+
+    --环绕中心组件
+    local centerComponent = nil
+
+    api.setTimeout(function()
+        scene.vfxRender.createVfx(3218, initialPos, math.Quaternion(0, 0, 0), 3.0, 3.0, 1.0, false)
+    end, 2)
+
+    -- 推迟中心组件的创建，防止同一帧中创建组件过多导致卡顿
+    api.setTimeout(function()
+        centerComponent = api.createComponent(1101635, center, math.Quaternion(0, 0, 0), math.Vector3(1, 1, 1))
+    end, 2)
+
+
+    api.setTimeout(function()
+        local enemyUnitBase = object.createEnemyUnit(generateIndex, initialPos, rotation)
+        ---@diagnostic disable-next-line: param-type-mismatch
+        api.addSurroundMotor(enemyUnitBase, centerComponent, angularVelocity, 9999.0, true)
+
+        local enemyUnitProperties = object.enemyUnitProperties[generateIndex]
+
+        ---@type EnemyUnitData
+        local enemyUnitData = {
+            base = enemyUnitBase,
+            ---@diagnostic disable-next-line: assign-type-mismatch
+            centerComponent = centerComponent,
+            templateIndex = generateIndex,
+            currentHealth = enemyUnitProperties.maxHealthValue,
+            currentDefense = enemyUnitProperties.currentDefense,
+            maxHealth = enemyUnitProperties.maxHealthValue,
+            maxDefense = enemyUnitProperties.maxDefenseValue
+        }
+
+        table.insert(
+            object.enemyUnitArray, enemyUnitData)
+        logger.debug("enemy unit finished")
+        -- logger.debug("createPosition: " .. generatePosition .. ", towardsVec: " .. towardsVec)
+    end, 3)
+    logger.debug("enemy unit prepared")
+end
+
+function scene.initEnemyUnitGenerator()
+    local function delayCallback()
+        scene.generateEnemyUnit()
+        api.setTimeout(delayCallback, scene.random:nextIntBound(10 * constant.LOGIC_FPS) + 5 * constant.LOGIC_FPS)
+        -- debug
+        -- api.setTimeout(delayCallback, 2)
+    end
+    api.setTimeout(delayCallback, 15 * constant.LOGIC_FPS
+    )
 end
 
 -- END==========================================================================

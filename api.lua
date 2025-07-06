@@ -216,6 +216,59 @@ function api.createComponentGroup(unitGroupKey, position, rotation, player)
     return GameAPI.create_unit_group(unitGroupKey, position, rotation, player)
 end
 
+---创建触发区域
+---@param triggerSpaceKey CustomTriggerSpaceKey 触发区域编号
+---@param position Vector3 位置
+---@param rotation Quaternion 旋转
+---@param zoom Vector3 缩放
+---@param player Role? 所属玩家
+---@return CustomTriggerSpace 创建出的触发区域
+function api.createTriggerSpace(triggerSpaceKey, position, rotation, zoom, player)
+    return GameAPI.create_customtriggerspace(triggerSpaceKey, position, rotation, zoom, player)
+end
+
+-- ---添加绑定
+-- ---@param obstacle Obstacle 被绑定的组件
+-- ---@param unitKey UnitKey 绑定单位编号
+-- ---@param socket Enums.ModelSocket 挂点
+-- ---@param offset Vector3? 偏移
+-- ---@param rotation Quaternion? 旋转
+-- ---@param zoom Vector3? 缩放
+-- ---@return string 绑定ID
+-- function api.bindModel(obstacle, unitKey, socket, offset, rotation, zoom)
+--     return obstacle.bind_model(unitKey, socket, offset, rotation, zoom)
+-- end
+
+---注册单位触发器
+---@param unit Unit 单位
+---@param eventData any[] 事件名及注册参数
+---@param callback function 回调
+---@return integer 触发器ID
+function api.registerUnitTriggerEventListener(unit, eventData, callback)
+    return LuaAPI.unit_register_trigger_event(unit, eventData, callback)
+end
+
+---获取对象的旋转
+---@param unit Unit
+---@return Quaternion
+function api.rotationOf(unit)
+    return unit.get_orientation()
+end
+
+---获取对象的线速度
+---@param unit Unit
+---@return Vector3
+function api.velocityOf(unit)
+    return unit.get_linear_velocity()
+end
+
+---设置受力物体的线速度
+---@param unit Unit
+---@param velocity Vector3
+function api.setUnitLinerVelocity(unit, velocity)
+    unit.set_linear_velocity(velocity)
+end
+
 -- EXTRA =======================================================================
 local vector = {}
 local json = {}
@@ -271,58 +324,53 @@ function vector.angleWithX(v)
 end
 
 ---计算从一个向量旋转到另一个向量的旋转角
----旋转顺序为：yaw，pitch
----@param a any
----@param b any
+---@param a Vector3
+---@param b Vector3
 ---@return Quaternion
 function vector.rotationBetweenVec(a, b)
-    -- xz 平面投影
-    local a_xz = math.Vector3(a.x, 0, a.z)
-    local b_xz = math.Vector3(b.x, 0, b.z)
+    -- 读取 a、b 的 yaw/pitch
+    local yawA   = a.yaw
+    local pitchA = a.pitch
+    local yawB   = b.yaw
+    local pitchB = b.pitch
 
-    -- 避免零向量
-    if a_xz:length() == 0 then a_xz = math.Vector3(0, 0, 1) end
-    if b_xz:length() == 0 then b_xz = math.Vector3(0, 0, 1) end
+    -- 构造仅含 yaw/pitch 的四元数，roll 始终为 0
+    local qFrom  = math.Quaternion(pitchA, yawA, 0)
+    local qTo    = math.Quaternion(pitchB, yawB, 0)
 
-    a_xz:normalize()
-    b_xz:normalize()
+    -- 返回从 qFrom 到 qTo 的旋转增量
+    qFrom:inverse()
+    return qTo * qFrom
+end
 
-    -- 计算 yaw（绕 y 轴），并取反以“逆时针为负”
-    local dot_xz    = a_xz:dot(b_xz)
-    local cross_y   = a_xz:cross(b_xz).y
-    local rawYaw    = math.atan2(cross_y, dot_xz)
-    local yaw       = -rawYaw
+--- 使用四元数旋转一个向量
+---@param vec Vector3  原始向量
+---@param quat Quaternion  旋转四元数
+---@return Vector3  旋转后的新向量
+function vector.rotateVectorByQuaternion(vec, quat)
+    -- 将 vec 转换为纯四元数（w = 0）
+    local vx, vy, vz = vec.x, vec.y, vec.z
+    local qw, qx, qy, qz = quat.w, quat.x, quat.y, quat.z
 
-    -- 绕 y 轴先旋转 yaw 后的新向量 a_rotated
-    local s, c      = math.sin(yaw), math.cos(yaw)
-    local a_rotated = math.Vector3(
-        a.x * c - a.z * s,
-        a.y,
-        a.x * s + a.z * c
-    )
+    -- 计算 q * v
+    local ix = qw * vx + qy * vz - qz * vy
+    local iy = qw * vy + qz * vx - qx * vz
+    local iz = qw * vz + qx * vy - qy * vx
+    local iw = -qx * vx - qy * vy - qz * vz
 
-    -- 计算 pitch：在包含 y 轴的平面内，从 a_rotated 指向 b 的夹角
-    local a_dir     = math.Vector3(a_rotated.x, a_rotated.y, a_rotated.z)
-    local b_dir     = math.Vector3(b.x, b.y, b.z)
-    a_dir:normalize()
-    b_dir:normalize()
+    -- 计算 (q * v) * q^-1
+    local rx = ix * qw + iw * -qx + iy * -qz - iz * -qy
+    local ry = iy * qw + iw * -qy + iz * -qx - ix * -qz
+    local rz = iz * qw + iw * -qz + ix * -qy - iy * -qx
 
-    local dot3 = a_dir:dot(b_dir)
-    local cross3 = a_dir:cross(b_dir)
-    -- 用 a_dir 与世界上方向的“右向量”决定 pitch 方向
-    local right = a_dir:cross(math.Vector3(0, 1, 0))
-    local signPitch = (right:dot(cross3) < 0) and -1 or 1
-    local pitch = math.acos(math.max(-1, math.min(1, dot3))) * signPitch
-
-    -- 返回四元数（pitch, yaw, roll=0）
-    return math.Quaternion(-pitch, -yaw, 0)
+    return math.Vector3(rx, ry, rz)
 end
 
 --- 保持方向，将向量长度设置为指定值
 --- @param v Vector3 原向量
 --- @param length number 目标长度
 --- @return Vector3 方向不变、长度为 newLen 的新向量
-function vector.setVectorLength(v, length)
+function vector.resetVectorLength(v, length)
     -- 拷贝一个向量，避免修改原向量
     local out = math.Vector3(v.x, v.y, v.z)
     -- normalize() 会把 out 单位化，并返回原来的长度
@@ -600,16 +648,8 @@ function logger.error(...) log(logger.levels.ERROR, ...) end
 ---@param towards Vector3 指向向量
 ---@param reference Vector3? 参考向量
 function extra.setUnitTowardsTo(unit, towards, reference)
-    local referenceVec = nil
-    if reference == nil then
-        referenceVec = math.Vector3(1, 0, 0)
-    else
-        referenceVec = vector.normalizeVec(reference)
-    end
-
-    local towardsVec = vector.normalizeVec(towards)
-
-    api.setUnitRotation(unit, vector.rotationBetweenVec(referenceVec, towardsVec))
+    local referenceVec = reference or math.Vector3(1, 0, 0)
+    api.setUnitRotation(unit, vector.rotationBetweenVec(referenceVec, towards))
 end
 
 local framePreHandlerList = {}

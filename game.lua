@@ -61,6 +61,7 @@ object.data = {
 ---@field currentDefense integer
 ---@field maxHealth integer
 ---@field maxDefense integer
+---@field bulletTemplateIndex integer
 
 ---敌方单位数组
 ---@type EnemyUnitData[]
@@ -76,9 +77,12 @@ object.turretComponentData = {}
 object.mainTurretCursorFrmHandlerIndex = nil
 
 
-object.enemyUnitTemplate = {}
+object.enemyUnitTemplates = {}
 
 object.enemyUnitProperties = {}
+
+
+object.bulletTemplates = {}
 
 function object.loadArchiveData(data)
     for key, value in pairs(object.data) do
@@ -93,8 +97,9 @@ function object.init(archiveData)
     ---@type Unit[]
     object.baseHexComponent = resource.baseHexComponent
     object.turretComponentData = resource.turretComponentData
-    object.enemyUnitTemplate = resource.enemyUnitTemplate
+    object.enemyUnitTemplates = resource.enemyUnitTemplates
     object.enemyUnitProperties = resource.enemyUnitProperties
+    object.bulletTemplates = resource.bulletTemplates
     -- 防御塔下移20（-60）
     for i = 2, #object.baseHexComponent, 1 do
         local curComp = object.baseHexComponent[i]
@@ -165,15 +170,15 @@ function object.setTurretTowards(turretComponentDataIndex, targetPos, minDistanc
 
     local towardsVec = targetPos - (api.positionOf(turretCompData.rotationPart))
 
-    local xzVector = math.Vector3(towardsVec.x, 0, towardsVec.z)
-    local constrainedXzVector = api.vector.setVectorLength(
-        xzVector,
+    local XZVector = math.Vector3(towardsVec.x, 0, towardsVec.z)
+    local constrainedXZVector = api.vector.resetVectorLength(
+        XZVector,
         math.max(
             minDistanceLimit or 10,
-            xzVector:length()
+            XZVector:length()
         )
     )
-    local constrainedTowardsVec = math.Vector3(constrainedXzVector.x, towardsVec.y, constrainedXzVector.z)
+    local constrainedTowardsVec = math.Vector3(constrainedXZVector.x, towardsVec.y, constrainedXZVector.z)
 
     api.extra.setUnitTowardsTo(turretRotationComp, constrainedTowardsVec, turretCompData.towardsReferenceVec)
 end
@@ -186,8 +191,73 @@ function object.enableMainTurretTowardsToCursor()
 end
 
 function object.createEnemyUnit(templateIndex, position, rotation)
-    local templateData = object.enemyUnitTemplate[templateIndex]
+    local templateData = object.enemyUnitTemplates[templateIndex]
     return api.createComponent(templateData.presetId, position, rotation, templateData.defaultZoom)
+end
+
+---敌方单位攻击
+---@param enemyUnitData EnemyUnitData
+function object.enemyUnitAtk(enemyUnitData)
+    local bulletCreatePosition = api.positionOf(enemyUnitData.base)
+    local bulletTemplate = object.bulletTemplates[enemyUnitData.bulletTemplateIndex]
+end
+
+---comment
+---@param targetUnitCurrentPosition Vector3
+---@param targetVelocity Vector3
+---@param distance number
+---@param bulletSpeed number
+---@return Vector3
+function object.calMovingUnitExpectPosition(
+    targetUnitCurrentPosition,
+    targetVelocity,
+    distance,
+    bulletSpeed
+)
+    local t = distance / bulletSpeed
+    local x = (targetVelocity * t):length()
+    return api.vector.resetVectorLength(targetVelocity, x) + targetUnitCurrentPosition
+end
+
+function object.mainTurretAtk()
+    local turretComponentData = object.turretComponentData[1]
+    local rawBulletCreateOffset = turretComponentData.bulletCreateOffset
+    local turretRotation = api.rotationOf(turretComponentData.rotationPart)
+    local bulletSpeed = turretComponentData.bulletSpeed
+    local bulletCreatePosition =
+        turretComponentData.basePosition +
+        turretComponentData.rotationPartBaseOffset +
+        api.vector.rotateVectorByQuaternion(rawBulletCreateOffset, turretRotation)
+
+    local bulletTemplate = object.bulletTemplates[turretComponentData.bulletTemplateIndex]
+
+    local bulletTargetDirection
+
+    local cameraTargetUnit = camera.updater.targetUnit
+    if cameraTargetUnit then
+        local targetUnitCurrentPosition = api.positionOf(cameraTargetUnit)
+        logger.debug("<bullet> target position: " .. tostring(targetUnitCurrentPosition))
+        local targetVel = api.velocityOf(cameraTargetUnit)
+        local distance = (targetUnitCurrentPosition - bulletCreatePosition):length()
+        local bulletTargetPosition = object.calMovingUnitExpectPosition(targetUnitCurrentPosition, targetVel, distance,
+            bulletSpeed)
+        logger.debug("<bullet> target expect position: " .. tostring(bulletTargetDirection))
+        bulletTargetDirection = bulletTargetPosition - bulletCreatePosition
+    else
+        bulletTargetDirection = api.positionOf(camera.cameraBindComponent) - bulletCreatePosition
+    end
+
+    local bulletRotation = api.vector.rotationBetweenVec(bulletTemplate.towardsReferenceVec, bulletTargetDirection)
+    local bullet = api.createComponent(bulletTemplate.presetId, bulletCreatePosition, bulletRotation,
+        bulletTemplate.defaultZoom)
+
+    -- scene.vfxRender.createVfx()
+
+
+
+    api.setTimeout(function()
+        api.setUnitLinerVelocity(bullet, api.vector.resetVectorLength(bulletTargetDirection, bulletSpeed))
+    end, 1)
 end
 
 -- test
@@ -198,10 +268,10 @@ end
 camera.cameraBindComponent = nil
 camera.minCameraDistance = 50
 camera.cameraTowards = math.Vector3(-0.57735, -0.57735, -0.57735)
-camera.cameraSpeed = 40
+camera.cameraSpeed = 60
 camera.cameraDefaultHeight = 80
 
-camera.cameraSmoothFactor = 0.6
+camera.cameraSmoothFactor = 1
 camera.defaultCameraMoveMotorIndex = 0
 
 camera.isCtrlMoving = false
@@ -209,7 +279,7 @@ camera.isCtrlMoving = false
 camera.updater = {
     ---@type Unit
     targetUnit = nil,
-    updateFrameInterval = 3,
+    updateFrameInterval = 5,
     -- enabled = false
 }
 
@@ -322,6 +392,11 @@ function camera.cancelLock()
 end
 
 function camera.ctrlMoveStop()
+    if not camera.isCtrlMoving then
+        object.mainTurretAtk()
+    end
+
+
     camera.isCtrlMoving = false
 
     -- 停止运动（此处清除的是由ctrlMove引起的速度向量）
@@ -340,7 +415,7 @@ function camera.ctrlMoveStop()
     if object.data.gameSettings.autoAimEnabled then
         -- 搜索敌方单位
         for _, value in ipairs(object.enemyUnitArray) do
-            if (api.positionOf(camera.cameraBindComponent) - api.positionOf(value.base)):length() < 15 then
+            if (api.positionOf(camera.cameraBindComponent) - api.positionOf(value.base)):length() < constant.CAMERA_ADSORBED_DISTANCE then
                 camera.lockToUnit(value.base)
                 break
             end
@@ -523,31 +598,44 @@ function scene.generateEnemyUnit()
         angularVelocity = math.Vector3(0, -constant.ENEMY_ANGULAR_SPEED_RATE, 0)
     end
 
-    local enemyUnitTemplate = object.enemyUnitTemplate[generateIndex]
+    local enemyUnitTemplate = object.enemyUnitTemplates[generateIndex]
     local rotation = api.vector.rotationBetweenVec(enemyUnitTemplate.towardsReferenceVector, initialTowards)
 
-    --环绕中心组件
-    local centerComponent = nil
+    local enemyUnitProperties = object.enemyUnitProperties[generateIndex]
 
+    local centerComponent = nil
+    local enemyUnitBase = nil
+
+    -- 创建初始特效
     api.setTimeout(function()
         scene.vfxRender.createVfx(3218, initialPos, math.Quaternion(0, 0, 0), 3.0, 3.0, 1.0, false)
-    end, 2)
+        logger.debug("enemy unit initial vfx created")
+    end, 1)
 
-    -- 推迟中心组件的创建，防止同一帧中创建组件过多导致卡顿
+    -- 创建中心组件
     api.setTimeout(function()
         centerComponent = api.createComponent(1101635, center, math.Quaternion(0, 0, 0), math.Vector3(1, 1, 1))
+        logger.debug("enemy unit center unit created")
     end, 2)
 
-
+    -- 创建模型
     api.setTimeout(function()
-        local enemyUnitBase = object.createEnemyUnit(generateIndex, initialPos, rotation)
+        enemyUnitBase = object.createEnemyUnit(generateIndex, initialPos, rotation)
+        logger.debug("enemy unit model created")
+    end, 3)
+
+    -- 添加运动
+    api.setTimeout(function()
         ---@diagnostic disable-next-line: param-type-mismatch
         api.addSurroundMotor(enemyUnitBase, centerComponent, angularVelocity, 9999.0, true)
+        logger.debug("enemy unit motor created")
+    end, 4)
 
-        local enemyUnitProperties = object.enemyUnitProperties[generateIndex]
-
+    --数据写入enemyUnitArray
+    api.setTimeout(function()
         ---@type EnemyUnitData
         local enemyUnitData = {
+            ---@diagnostic disable-next-line: assign-type-mismatch
             base = enemyUnitBase,
             ---@diagnostic disable-next-line: assign-type-mismatch
             centerComponent = centerComponent,
@@ -555,20 +643,25 @@ function scene.generateEnemyUnit()
             currentHealth = enemyUnitProperties.maxHealthValue,
             currentDefense = enemyUnitProperties.currentDefense,
             maxHealth = enemyUnitProperties.maxHealthValue,
-            maxDefense = enemyUnitProperties.maxDefenseValue
+            maxDefense = enemyUnitProperties.maxDefenseValue,
+            bulletTemplateIndex = enemyUnitProperties.bulletTemplateIndex
         }
 
         table.insert(
             object.enemyUnitArray, enemyUnitData)
         logger.debug("enemy unit finished")
-        -- logger.debug("createPosition: " .. generatePosition .. ", towardsVec: " .. towardsVec)
-    end, 3)
-    logger.debug("enemy unit prepared")
+    end, 6)
+
+    logger.debug("enemy unit create prepared")
 end
 
 function scene.initEnemyUnitGenerator()
     local function delayCallback()
-        scene.generateEnemyUnit()
+        if #object.enemyUnitArray < constant.ENEMY_UNIT_MAX_NUM then
+            logger.info("<enemy unit generator> the maximum number (" ..
+                constant.ENEMY_UNIT_MAX_NUM .. ") of units in the scene has been reached.")
+            scene.generateEnemyUnit()
+        end
         api.setTimeout(delayCallback, scene.random:nextIntBound(10 * constant.LOGIC_FPS) + 5 * constant.LOGIC_FPS)
         -- debug
         -- api.setTimeout(delayCallback, 2)

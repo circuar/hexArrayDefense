@@ -287,6 +287,17 @@ local function init()
         logger.info("cancel delete saved game data")
         api.sendUICustomEvent(Player, constant.UI_HIDE_DELETE_ARCHIVE_EVENT, {})
     end)
+
+
+    -- test
+
+
+
+
+
+
+
+
 end
 
 

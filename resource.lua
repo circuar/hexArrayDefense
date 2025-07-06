@@ -106,27 +106,51 @@ for index, value in ipairs(baseHexComponentId) do
     baseHexComponent[index] = api.getUnitById(value)
 end
 
+local bulletTemplates = {
+    [1] = {
+        presetId = 1073774641,
+        towardsReferenceVec = math.Vector3(0, 1, 0),
+        defaultZoom = math.Vector3(0.5, 5, 0.5)
+    },
+    [2] = {
+
+    },
+    [3] = {
+
+    }
+}
+
+
+
+
 ---@class TurretComponentData
 ---@field base Unit
+---@field basePosition Vector3
 ---@field rotationPart Unit
+---@field rotationPartBaseOffset Vector3
 ---@field towardsReferenceVec Vector3
----@field bulletCreatePoint Vector3
+---@field bulletCreateOffset Vector3
 ---@field bulletTemplateIndex integer
-
+---@field isMainTurret boolean
+---@field atkMethodType integer
+---@field atkCoolDown number
+---@field bulletSpeed number
 ---松散数组
 ---@type TurretComponentData[]
 local turretComponentData = {
     --无运动器，未绑定
     [1] = {
         base = api.getUnitById(1466853682),
+        basePosition = math.Vector3(0, 59, 0),
         rotationPart = api.getUnitById(1812918448),
         rotationPartBaseOffset = math.Vector3(0, 5, 0),
         towardsReferenceVec = math.Vector3(0, 0, 1),
-        bulletCreatePoint = math.Vector3(0, 5, 13.5),
+        bulletCreateOffset = math.Vector3(0, 5, 13.5),
         bulletTemplateIndex = 1,
         isMainTurret = true,
         atkMethodType = 1,
         atkCoolDown = 0.3,
+        bulletSpeed = 150
     },
     -- [2] = {
     --     base = api.getUnitById(),
@@ -139,11 +163,11 @@ local turretComponentData = {
 }
 
 
-local enemyUnitTemplate = {
+local enemyUnitTemplates = {
     [1] = {
         presetId = 1073823833,
         towardsReferenceVector = math.Vector3(1, 0, 0),
-        defaultZoom = math.Vector3(1.92, 0.17, 2.00)
+        defaultZoom = math.Vector3(1.92, 0.17, 2.00),
     },
 }
 
@@ -154,7 +178,7 @@ local enemyUnitProperties = {
         damageValuePerBullet = 20,
         maxHealthValue = 400,
         maxDefenseValue = 300,
-
+        bulletTemplateIndex = 1
     }
 }
 
@@ -164,6 +188,7 @@ local enemyUnitProperties = {
 return {
     baseHexComponent = baseHexComponent,
     turretComponentData = turretComponentData,
-    enemyUnitTemplate = enemyUnitTemplate,
-    enemyUnitProperties = enemyUnitProperties
+    enemyUnitTemplates = enemyUnitTemplates,
+    enemyUnitProperties = enemyUnitProperties,
+    bulletTemplates = bulletTemplates
 }

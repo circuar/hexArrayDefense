@@ -5,8 +5,10 @@ return {
     MAIN_TURRET_MIN_ATK_DISTANCE = 70,
     ENEMY_GENERATE_CENTER_DISTANCE = 70,
     ENEMY_ATK_MAX_DISTANCE = 140,
-    ENEMY_ANGULAR_SPEED_RATE = 10,
+    ENEMY_ANGULAR_SPEED_RATE = 5,
     GLOBAL_BASE_HEIGHT = 80,
+    ENEMY_UNIT_MAX_NUM = 10,
+    CAMERA_ADSORBED_DISTANCE = 20,
 
     --通用界面事件
     UI_SHOW_LOADING_EVENT = "UI_EVENT_SHOW_LOADING",
@@ -68,5 +70,11 @@ return {
         LOCKED = "LOCKED",
         WARN = "WARN",
         URGENT = "URGENT"
+    },
+
+
+    cacheConfig = {
+        bulletCacheMinSize = 10,
+        bulletCacheMaxReserveSize = 100
     }
 }

@@ -269,6 +269,23 @@ function api.setUnitLinerVelocity(unit, velocity)
     unit.set_linear_velocity(velocity)
 end
 
+---设置对象与单位的碰撞是否生效
+---@param unit Unit
+function api.setUnitCollisionStatusWith(unit, with, status)
+    GameAPI.enable_collision_between_units(unit, with, status)
+end
+
+---销毁单位
+---@param unit Unit
+function api.destroyUnit(unit)
+    GameAPI.destroy_unit(unit)
+end
+
+---销毁单位及其子单位
+function api.destroyUnitWithSubUnit(unit)
+    GameAPI.destroy_unit_with_children(unit, true)
+end
+
 -- EXTRA =======================================================================
 local vector = {}
 local json = {}
@@ -695,6 +712,24 @@ end
 
 function extra.unRegisterAfterHandler(index)
     table.remove(frameAfterHandlerList, index)
+end
+
+---给对象添加一个碰撞监听器
+---回调参数：
+---self：碰撞体自身
+---withUnit：碰撞到的物体
+---position：碰撞位置
+---@param unit Unit
+---@param callback function
+function extra.addUnitCollisionListener(unit, callback)
+    local function callbackProxy(event, selfUnit, data)
+        local position = data.contact_pos
+        local withUnit = data.unit2
+
+        callback(selfUnit, withUnit, position)
+    end
+
+    api.registerUnitTriggerEventListener(unit, { EVENT.SPEC_OBSTACLE_CONTACT_BEGAN }, callbackProxy)
 end
 
 --random:

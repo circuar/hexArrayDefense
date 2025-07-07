@@ -1,6 +1,8 @@
 local constant = require("constant")
 local api      = require("api")
 local logger   = require("api").logger
+local manager  = require("manager")
+local resource = require("resource")
 
 local object   = {}
 local frame    = {}
@@ -8,6 +10,54 @@ local camera   = {}
 local hud      = {}
 local scene    = {}
 
+
+local originCreateBullet  = function(bulletTemplateIndex, createPosition, initialRotation)
+    local bulletTemplate = resource.bulletTemplates[bulletTemplateIndex]
+    local bullet = api.createComponent(
+        bulletTemplate.presetId,
+        createPosition,
+        initialRotation,
+        bulletTemplate.defaultZoom)
+    api.setUnitCollisionStatusWith(bullet, resource.gameCameraBindUnit, false)
+    return bullet
+end
+
+local originDestroyBullet = function(bulletTemplateIndex, bulletUnit)
+    api.destroyUnitWithSubUnit(bulletUnit)
+end
+
+local apiExport           = {
+    createVfx = api.createVFX,
+    createVfxWithSocket = api.createVFXWithSocket,
+    createBullet = originCreateBullet,
+    destroyBullet = originDestroyBullet,
+
+}
+
+
+---设置场景特效状态
+---@param status boolean
+local function setVfxRenderingStatus(status)
+    if status then
+        apiExport.createVfx = api.createVfxApi
+        apiExport.createVfxWithSocket = api.createVFXWithSocket
+    else
+        apiExport.createVfx = function() end
+        apiExport.createVfxWithSocket = function() end
+    end
+end
+
+---设置场景特效状态
+---@param status boolean
+local function setComponentCacheCreateStatus(status)
+    if status then
+        apiExport.createBullet = manager.bulletCreateProxy
+        apiExport.destroyBullet = manager.bulletDestroyProxy
+    else
+        apiExport.createBullet = originCreateBullet
+        apiExport.destroyBullet = originDestroyBullet
+    end
+end
 
 
 -- 场景单位=====================================================================
@@ -27,12 +77,6 @@ object.data = {
 
     --护盾值
     defense = 600,
-
-    --能量值
-    energy = 50,
-
-    --游戏存档数据格式版本
-    version = 1,
 
     --总经验值
     totalExp = 0,
@@ -63,6 +107,10 @@ object.data = {
 ---@field maxDefense integer
 ---@field bulletTemplateIndex integer
 
+---@class TurretStatusData
+---@field coolDownStatus boolean
+
+
 ---敌方单位数组
 ---@type EnemyUnitData[]
 object.enemyUnitArray = {}
@@ -73,33 +121,66 @@ object.baseHexComponent = {}
 -- 炮台组件数据对象数组
 object.turretComponentData = {}
 
+---@type TurretStatusData[]
+object.turretStatusData = {}
+
 -- 主炮台朝向光标帧更新处理器索引
 object.mainTurretCursorFrmHandlerIndex = nil
-
 
 object.enemyUnitTemplates = {}
 
 object.enemyUnitProperties = {}
 
-
 object.bulletTemplates = {}
 
-function object.loadArchiveData(data)
-    for key, value in pairs(object.data) do
-        object.data[key] = data[key] or value
-    end
+object.mainTurretExtraData = {
+    maxBulletNum = 15,
+    bulletLoadFrame = 90,
+    remainBulletNum = 15,
+
+    rapidIsCoolDown = false,
+    rapidMaxBulletNum = 40,
+    remainRapidBulletNum = 40,
+    rapidLoadFrame = 450,
+    rapidIntervalFrame = 3,
+
+    rapidBulletCreateLeftOffset = math.Vector3(-3.75, 0.5, 5),
+    rapidBulletCreateRightOffset = math.Vector3(3.75, 0.5, 5),
+    leftOrRightSelect = true,
+
+    rapidBulletSpeed = 250
+
+}
+
+
+function object.turretCoolDown(turretComponentDataIndex, callback)
+    local turretData = object.turretComponentData[turretComponentDataIndex]
+    object.turretStatusData[turretComponentDataIndex].coolDownStatus = true
+    api.setTimeout(function()
+        object.turretStatusData[turretComponentDataIndex].coolDownStatus = false
+        callback()
+    end, turretData.atkCoolDownFrame)
 end
 
 ---初始化游戏对象
 function object.init(archiveData)
-    object.loadArchiveData(archiveData)
-    local resource = require("resource")
+    object.data = archiveData
+
     ---@type Unit[]
     object.baseHexComponent = resource.baseHexComponent
     object.turretComponentData = resource.turretComponentData
     object.enemyUnitTemplates = resource.enemyUnitTemplates
     object.enemyUnitProperties = resource.enemyUnitProperties
     object.bulletTemplates = resource.bulletTemplates
+
+    for index, value in ipairs(object.turretComponentData) do
+        object.turretStatusData[index] = {
+            coolDownStatus = false,
+        }
+    end
+
+
+
     -- 防御塔下移20（-60）
     for i = 2, #object.baseHexComponent, 1 do
         local curComp = object.baseHexComponent[i]
@@ -219,45 +300,157 @@ function object.calMovingUnitExpectPosition(
     return api.vector.resetVectorLength(targetVelocity, x) + targetUnitCurrentPosition
 end
 
-function object.mainTurretAtk()
-    local turretComponentData = object.turretComponentData[1]
-    local rawBulletCreateOffset = turretComponentData.bulletCreateOffset
+local function calBulletCreatePosition(turretComponentData, rawOffsetVector)
+    -- local rawBulletCreateOffset = turretComponentData.bulletCreateOffset
     local turretRotation = api.rotationOf(turretComponentData.rotationPart)
-    local bulletSpeed = turretComponentData.bulletSpeed
-    local bulletCreatePosition =
-        turretComponentData.basePosition +
-        turretComponentData.rotationPartBaseOffset +
-        api.vector.rotateVectorByQuaternion(rawBulletCreateOffset, turretRotation)
+    return turretComponentData.basePosition + turretComponentData.rotationPartBaseOffset +
+        api.vector.rotateVectorByQuaternion(rawOffsetVector, turretRotation)
+end
 
-    local bulletTemplate = object.bulletTemplates[turretComponentData.bulletTemplateIndex]
-
-    local bulletTargetDirection
-
+local function calMainTurretBulletTowards(bulletCreatePosition, bulletSpeed)
     local cameraTargetUnit = camera.updater.targetUnit
     if cameraTargetUnit then
         local targetUnitCurrentPosition = api.positionOf(cameraTargetUnit)
-        logger.debug("<bullet> target position: " .. tostring(targetUnitCurrentPosition))
         local targetVel = api.velocityOf(cameraTargetUnit)
         local distance = (targetUnitCurrentPosition - bulletCreatePosition):length()
         local bulletTargetPosition = object.calMovingUnitExpectPosition(targetUnitCurrentPosition, targetVel, distance,
             bulletSpeed)
-        logger.debug("<bullet> target expect position: " .. tostring(bulletTargetDirection))
-        bulletTargetDirection = bulletTargetPosition - bulletCreatePosition
+        return bulletTargetPosition - bulletCreatePosition
     else
-        bulletTargetDirection = api.positionOf(camera.cameraBindComponent) - bulletCreatePosition
+        local cameraPosition = api.positionOf(camera.cameraBindComponent)
+        local targetXZPosition = math.Vector3(cameraPosition.x, 0, cameraPosition.z)
+        if targetXZPosition:length() < constant.MAIN_TURRET_MIN_ATK_DISTANCE then
+            targetXZPosition = api.vector.resetVectorLength(targetXZPosition, constant.MAIN_TURRET_MIN_ATK_DISTANCE)
+        end
+        local targetPosition = math.Vector3(targetXZPosition.x, cameraPosition.y, targetXZPosition.z)
+        return targetPosition - bulletCreatePosition
+    end
+end
+
+
+function object.mainTurretAtk()
+    local turretStatusData = object.turretStatusData[1]
+
+    if turretStatusData.coolDownStatus then
+        return
     end
 
+    local turretComponentData = object.turretComponentData[1]
+    local bulletCreatePosition = calBulletCreatePosition(turretComponentData, turretComponentData.bulletCreateOffset)
+
+    local bulletSpeed = turretComponentData.bulletSpeed
+    local bulletTemplate = object.bulletTemplates[turretComponentData.bulletTemplateIndex]
+    local bulletTargetDirection = calMainTurretBulletTowards(bulletCreatePosition, bulletSpeed)
+
+
     local bulletRotation = api.vector.rotationBetweenVec(bulletTemplate.towardsReferenceVec, bulletTargetDirection)
-    local bullet = api.createComponent(bulletTemplate.presetId, bulletCreatePosition, bulletRotation,
-        bulletTemplate.defaultZoom)
 
-    -- scene.vfxRender.createVfx()
+    local bullet = apiExport.createBullet(1, bulletCreatePosition, bulletRotation)
 
 
+    -- apiExport.createVfx()
 
     api.setTimeout(function()
         api.setUnitLinerVelocity(bullet, api.vector.resetVectorLength(bulletTargetDirection, bulletSpeed))
+        local collisionCallback = function(selfUnit, withUnit, position)
+            apiExport.destroyBullet(1, bullet)
+            apiExport.createVfx(4136, position)
+        end
+        -- api.registerUnitTriggerEventListener(bullet, { EVENT.SPEC_OBSTACLE_CONTACT_BEGAN }, collisionCallback)
+        api.extra.addUnitCollisionListener(bullet, collisionCallback)
     end, 1)
+
+
+    -- 进入冷却
+    local mainTurretExtraData = object.mainTurretExtraData
+    mainTurretExtraData.remainBulletNum = mainTurretExtraData.remainBulletNum - 1
+    if mainTurretExtraData.remainBulletNum <= 0 then
+        -- 进入重新装填状态
+        turretStatusData.coolDownStatus = true
+        hud.setBulletLoadProgress(0, 0.2)
+        api.setTimeout(function()
+            hud.setBulletLoadProgress(100, (mainTurretExtraData.bulletLoadFrame - 6.0) / constant.LOGIC_FPS)
+        end, 6)
+        api.setTimeout(function()
+            mainTurretExtraData.remainBulletNum = mainTurretExtraData.maxBulletNum
+            turretStatusData.coolDownStatus = false
+        end, mainTurretExtraData.bulletLoadFrame)
+    else
+        hud.setBulletLoadProgress((mainTurretExtraData.remainBulletNum * 100 // mainTurretExtraData.maxBulletNum), 0.2)
+        object.turretCoolDown(1, function() end)
+    end
+end
+
+function object.mainTurretRapidAttack()
+    local turretExtData = object.mainTurretExtraData
+
+    if turretExtData.rapidIsCoolDown then
+        return
+    end
+
+    -- 进入重新装填状态
+    turretExtData.rapidIsCoolDown = true
+    -- hud.setBulletLoadProgress(0, 0)
+
+    -- hud.setBulletLoadProgress(100, (mainTurretExtraData.bulletLoadFrame - 6.0) / constant.LOGIC_FPS)
+    hud.setRapidBulletProgress(0, 0.0)
+
+    local timerLoopCount = 0
+    local function loadTimer()
+        api.setTimeout(function()
+            timerLoopCount = timerLoopCount + 5
+            hud.setRapidBulletProgress(timerLoopCount / turretExtData.rapidLoadFrame * 100, 5.0 / constant.LOGIC_FPS)
+            if timerLoopCount >= turretExtData.rapidLoadFrame then
+                return
+            end
+            loadTimer()
+        end, 5)
+    end
+    loadTimer()
+
+
+    api.setTimeout(function()
+        turretExtData.remainRapidBulletNum = turretExtData.rapidMaxBulletNum
+        turretExtData.rapidIsCoolDown = false
+        hud.setRapidBulletInfo(turretExtData.remainRapidBulletNum, turretExtData.rapidMaxBulletNum)
+        hud.setRapidBulletProgress(100.0, 5.0 / constant.LOGIC_FPS)
+    end, turretExtData.rapidLoadFrame)
+
+    local turretComponentData = object.turretComponentData[1]
+    local bulletSpeed = turretExtData.rapidBulletSpeed
+    local bulletTemplate = object.bulletTemplates[2]
+
+    local function atkLoop()
+        turretExtData.leftOrRightSelect = not turretExtData.leftOrRightSelect
+        local leftOrRightSelect = turretExtData.leftOrRightSelect
+
+        local bulletCreatePosition = calBulletCreatePosition(turretComponentData,
+            leftOrRightSelect and turretExtData.rapidBulletCreateLeftOffset or turretExtData
+            .rapidBulletCreateRightOffset)
+
+        local bulletTargetDirection = calMainTurretBulletTowards(bulletCreatePosition, bulletSpeed)
+        local bulletRotation = api.vector.rotationBetweenVec(bulletTemplate.towardsReferenceVec, bulletTargetDirection)
+        local bullet = apiExport.createBullet(2, bulletCreatePosition, bulletRotation)
+
+        --添加逻辑
+        api.setTimeout(function()
+            api.setUnitLinerVelocity(bullet, api.vector.resetVectorLength(bulletTargetDirection, bulletSpeed))
+            local collisionCallback = function(selfUnit, withUnit, position)
+                apiExport.destroyBullet(2, bullet)
+                apiExport.createVfx(4136, position)
+            end
+            api.extra.addUnitCollisionListener(bullet, collisionCallback)
+        end, 1)
+
+
+        turretExtData.remainRapidBulletNum = turretExtData.remainRapidBulletNum - 1
+        hud.setRapidBulletInfo(turretExtData.remainRapidBulletNum, turretExtData.rapidMaxBulletNum)
+        if turretExtData.remainRapidBulletNum <= 0 then
+            return
+        end
+        api.setTimeout(atkLoop, turretExtData.rapidIntervalFrame)
+    end
+    atkLoop()
 end
 
 -- test
@@ -280,7 +473,8 @@ camera.updater = {
     ---@type Unit
     targetUnit = nil,
     updateFrameInterval = 5,
-    -- enabled = false
+    running = false,
+    updaterFrameHandlerIndex = nil
 }
 
 
@@ -291,22 +485,35 @@ end
 
 --- 相机随帧更新
 function camera.updater.run()
-    if camera.isCtrlMoving then
-        camera.updater.cancelLock()
+    --- 加互斥锁，防止多次进入重复创建帧回调导致StackOverflow
+
+    if camera.updater.running then
         return
     end
 
-    if camera.updater.targetUnit == nil then
-        return
+    camera.updater.running = true
+
+    local function updateCamera()
+        if camera.isCtrlMoving then
+            camera.updater.cancelLock()
+            camera.updater.running = false
+            return
+        end
+
+        if camera.updater.targetUnit == nil then
+            camera.updater.running = false
+            return
+        end
+
+        local targetPosition = api.positionOf(camera.updater.targetUnit)
+        local currentPosition = api.positionOf(camera.cameraBindComponent)
+        camera.stepSmoothMove(currentPosition, targetPosition, camera.updater.updateFrameInterval)
+        hud.updateCameraPosition(currentPosition)
+
+        api.setTimeout(updateCamera, camera.updater.updateFrameInterval)
     end
 
-    local targetPosition = api.positionOf(camera.updater.targetUnit)
-    local currentPosition = api.positionOf(camera.cameraBindComponent)
-    camera.stepSmoothMove(currentPosition, targetPosition, camera.updater.updateFrameInterval)
-    hud.updateCameraPosition(currentPosition)
-
-
-    api.setTimeout(camera.updater.run, camera.updater.updateFrameInterval)
+    updateCamera()
 end
 
 function camera.updater.cancelLock()
@@ -344,13 +551,12 @@ function camera.slidAngleTransform(angle)
 end
 
 ---初始化
----@param cameraComponent Unit
-function camera.init(cameraComponent)
-    camera.cameraBindComponent = cameraComponent
+function camera.init()
+    camera.cameraBindComponent = resource.gameCameraBindUnit
     api.setPosition(camera.cameraBindComponent, math.Vector3(50, 80, 50))
 
     api.setCameraBindMode(Player, Enums.CameraBindMode.BIND)
-    api.setCameraFollowUnit(Player, cameraComponent, false)
+    api.setCameraFollowUnit(Player, camera.cameraBindComponent, false)
     api.setCameraProperties(Player, {
         [Enums.CameraPropertyType.BIND_MODE_OFFSET_X] = (-camera.minCameraDistance * camera.cameraTowards).x,
         [Enums.CameraPropertyType.BIND_MODE_OFFSET_Y] = (-camera.minCameraDistance * camera.cameraTowards).y,
@@ -392,11 +598,6 @@ function camera.cancelLock()
 end
 
 function camera.ctrlMoveStop()
-    if not camera.isCtrlMoving then
-        object.mainTurretAtk()
-    end
-
-
     camera.isCtrlMoving = false
 
     -- 停止运动（此处清除的是由ctrlMove引起的速度向量）
@@ -406,7 +607,6 @@ function camera.ctrlMoveStop()
         math.Vector3(0, 0, 0),
         false
     )
-    api.disableMotor(camera.cameraBindComponent, camera.defaultCameraMoveMotorIndex)
 
     hud.updateCameraPosition(api.positionOf(camera.cameraBindComponent))
 
@@ -421,6 +621,22 @@ function camera.ctrlMoveStop()
             end
         end
     end
+end
+
+function camera.handlerCameraStopCtrlMoveEvent()
+    -- 判断是否是开火动作
+    -- isCtrlMoving为false表示没有拖动操作
+    -- 此时为开火动作
+    if not camera.isCtrlMoving then
+        object.mainTurretAtk()
+        if (api.positionOf(camera.cameraBindComponent) - math.Vector3(0, constant.GLOBAL_BASE_HEIGHT, 0)):length() < constant.MAIN_TURRET_MIN_ATK_DISTANCE then
+            hud.setCursorStatus(constant.cursorStatusEnum.WARN)
+        end
+
+        return
+    end
+
+    camera.ctrlMoveStop()
 end
 
 ---控制相机朝方向移动
@@ -502,48 +718,27 @@ function hud.fullUpdate()
     hud.updateUIAutoAimStatus(object.data.gameSettings.autoAimEnabled)
 end
 
+function hud.setBulletLoadProgress(percentage, duration)
+    api.sendGlobalCustomEvent(constant.UI_BRIDGE_SET_BULLET_LOAD_PROGRESS,
+        { percentage = percentage, duration = duration })
+end
+
+---注意，这个函数使用的参数是浮点数而非整数
+---@param percentage number
+---@param duration number
+function hud.setRapidBulletProgress(percentage, duration)
+    api.sendGlobalCustomEvent(constant.UI_BRIDGE_SET_RAPID_BULLET_PROGRESS,
+        { percentage = percentage, duration = duration })
+end
+
+function hud.setRapidBulletInfo(currentBulletNum, maxBulletNum)
+    api.sendGlobalCustomEvent(constant.UI_BRIDGE_SET_RAPID_BULLET_DATA,
+        { remainRapidBulletNum = currentBulletNum, maxRapidBulletNum = maxBulletNum })
+    -- hud.setBulletLoadProgress(currentBulletNum * 100 // maxBulletNum, 0.1)
+end
+
 -- scene =======================================================================
 scene.random = api.random.new(666)
-scene.vfxRenderApiExport = {
-    ---创建特效
-    ---@param effectKey integer 特效编号
-    ---@param pos Vector3 特效创建位置
-    ---@param rotation Quaternion? 旋转
-    ---@param zoom Fixed? 特效缩放
-    ---@param duration Fixed? 持续时间
-    ---@param speed Fixed? 播放速度
-    ---@param soundEnabled boolean? 开启声音，默认关闭
-    createVfxApi = function(effectKey, pos, rotation, zoom, duration, speed, soundEnabled)
-        api.createVFX(effectKey, pos, rotation, zoom, duration, speed, soundEnabled)
-    end,
-    ---创建绑定特效
-    ---@param vfxKey integer 特效编号
-    ---@param unit Unit 绑定到的组件
-    ---@param socket Enums.ModelSocket 挂载点
-    ---@param zoom number 缩放倍数
-    ---@param duration number 持续时间
-    ---@param bindType Enums.BindType 绑定类型
-    createVfxWithSocketApi = function(vfxKey, unit, socket, zoom, duration, bindType)
-        api.createVFXWithSocket(vfxKey, unit, socket, zoom, duration, bindType)
-    end
-}
-scene.vfxRender = {
-    createVfx = scene.vfxRenderApiExport.createVfxApi,
-    createVfxWithSocket = scene.vfxRenderApiExport.createVfxWithSocketApi
-}
-
-
----设置场景特效状态
----@param status boolean
-function scene.setVfxRenderingStatus(status)
-    if status then
-        scene.vfxRender.createVfx = scene.vfxRenderApiExport.createVfxApi
-        scene.vfxRender.createVfxWithSocket = scene.vfxRenderApiExport.createVfxWithSocketApi
-    else
-        scene.vfxRender.createVfx = function() end
-        scene.vfxRender.createVfxWithSocket = function() end
-    end
-end
 
 function scene.gameStartHexRunMotor()
     local iterationMaxIndex = object.calHexArrayIndexMaxByLayer(object.data.layer)
@@ -608,7 +803,7 @@ function scene.generateEnemyUnit()
 
     -- 创建初始特效
     api.setTimeout(function()
-        scene.vfxRender.createVfx(3218, initialPos, math.Quaternion(0, 0, 0), 3.0, 3.0, 1.0, false)
+        apiExport.createVfx(3218, initialPos, math.Quaternion(0, 0, 0), 3.0, 3.0, 1.0, false)
         logger.debug("enemy unit initial vfx created")
     end, 1)
 
@@ -658,21 +853,23 @@ end
 function scene.initEnemyUnitGenerator()
     local function delayCallback()
         if #object.enemyUnitArray < constant.ENEMY_UNIT_MAX_NUM then
+            scene.generateEnemyUnit()
+        else
             logger.info("<enemy unit generator> the maximum number (" ..
                 constant.ENEMY_UNIT_MAX_NUM .. ") of units in the scene has been reached.")
-            scene.generateEnemyUnit()
         end
         api.setTimeout(delayCallback, scene.random:nextIntBound(10 * constant.LOGIC_FPS) + 5 * constant.LOGIC_FPS)
         -- debug
         -- api.setTimeout(delayCallback, 2)
     end
-    api.setTimeout(delayCallback, 15 * constant.LOGIC_FPS
-    )
+    api.setTimeout(delayCallback, 15 * constant.LOGIC_FPS)
 end
 
 -- END==========================================================================
 
 return {
+    setVfxRenderingStatus = setVfxRenderingStatus,
+    setComponentCacheCreateStatus = setComponentCacheCreateStatus,
     camera = camera,
     frame = frame,
     hud = hud,

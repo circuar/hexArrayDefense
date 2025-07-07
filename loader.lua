@@ -3,6 +3,7 @@ local game     = require("game")
 local api      = require("api")
 local logger   = require("api").logger
 local json     = require("api").json
+local manager  = require("manager")
 
 ---显示加载界面
 ---@param player Role 指定玩家
@@ -21,34 +22,37 @@ end
 ---@param settingRef table
 local function loadPlayerSettings(player, settingRef)
     -- 加载玩家设置
-    local settingsJson = api.fetchArchiveData(player, Enums.ArchiveType.Str, 1001)
-    local savedSettings = json.parse(settingsJson) or {}
+    -- local settingsJson = api.fetchArchiveData(player, Enums.ArchiveType.Str, 1001)
+    -- local savedSettings = json.parse(settingsJson) or {}
 
-    for key, value in pairs(settingRef) do
-        settingRef[key] = savedSettings[key] or value
-    end
+    -- for key, value in pairs(settingRef) do
+    --     settingRef[key] = savedSettings[key] or value
+    -- end
 
-    logger.debug("player settings loaded: " .. json.stringify(settingRef))
+    -- logger.debug("player settings loaded: " .. json.stringify(settingRef))
+    settingRef.enableVfx = api.fetchArchiveData(player, Enums.ArchiveType.Bool, 1001)
+    settingRef.enableAdService = api.fetchArchiveData(player, Enums.ArchiveType.Bool, 1002)
+    settingRef.enableComponentCache = api.fetchArchiveData(player, Enums.ArchiveType.Bool, 1003)
 end
 
----上传玩家设置
+
+-- ---上传玩家设置
 ---@param player Role
 local function uploadPlayerSettings(player)
-    local settingsJson = json.stringify(PlayerSettings)
-    logger.debug("uploading player settings: " .. settingsJson)
-    api.saveArchiveData(player, Enums.ArchiveType.Str, 1001, settingsJson)
+    -- local settingsJson = json.stringify(PlayerSettings)
+    -- logger.debug("uploading player settings: " .. settingsJson)
+    -- api.saveArchiveData(player, Enums.ArchiveType.Str, 1001, settingsJson)
+    api.saveArchiveData(player, Enums.ArchiveType.Bool, 1001, PlayerSettings.enableVfx)
+    api.saveArchiveData(player, Enums.ArchiveType.Bool, 1002, PlayerSettings.enableAdService)
+    api.saveArchiveData(player, Enums.ArchiveType.Bool, 1003, PlayerSettings.enableComponentCache)
 end
 
 local function loadPlayerGameStats(player, statsRef)
     -- 加载游戏统计数据
-    local statsJson = api.fetchArchiveData(player, Enums.ArchiveType.Str, 1002)
-    local savedStats = json.parse(statsJson) or {}
-
-    for key, value in pairs(statsRef) do
-        statsRef[key] = savedStats[key] or value
-    end
-
-    logger.debug("game stats loaded: " .. json.stringify(statsRef))
+    statsRef.totalGames = api.fetchArchiveData(player, Enums.ArchiveType.Int, 1004)
+    statsRef.totalKills = api.fetchArchiveData(player, Enums.ArchiveType.Int, 1005)
+    statsRef.totalDamageTaken = api.fetchArchiveData(player, Enums.ArchiveType.Int, 1006)
+    statsRef.maxSurvivalTime = api.fetchArchiveData(player, Enums.ArchiveType.Int, 1007)
 end
 
 
@@ -59,6 +63,9 @@ local function refreshSettingsUI()
     })
     api.sendGlobalCustomEvent(constant.UI_BRIDGE_SET_AD_SETTING_TEXT, {
         text = PlayerSettings.enableAdService and "广告服务：#G开启" or "广告服务：#R关闭"
+    })
+    api.sendGlobalCustomEvent(constant.UI_BRIDGE_SET_CACHE_SETTING_TEXT, {
+        text = PlayerSettings.enableComponentCache and "组件缓存加速：#G开启" or "组件缓存加速：#R关闭"
     })
 end
 
@@ -79,17 +86,14 @@ end
 
 
 local function checkSavedGameArchive()
-    local gameArchiveJson = api.fetchArchiveData(Player, Enums.ArchiveType.Str, 1003)
-    if (gameArchiveJson == nil or gameArchiveJson == "") then
-        return false
-    end
-    return true
+    local gameArchiveStatus = api.fetchArchiveData(Player, Enums.ArchiveType.Bool, 1019)
+    return gameArchiveStatus
 end
 
 ---清除存档
 local function deleteSavedGameArchive()
-    api.saveArchiveData(Player, Enums.ArchiveType.Str, 1003, "")
-    logger.info("Game archive saved successfully.")
+    api.saveArchiveData(Player, Enums.ArchiveType.Bool, 1019, false)
+    logger.info("Game archive delete successfully.")
 end
 
 local showDeleteArchiveUI = function()
@@ -98,11 +102,42 @@ end
 
 
 local function loadGame()
-    local gameArchiveJson = api.fetchArchiveData(Player, Enums.ArchiveType.Str, 1003)
+    local data = {
+        --游戏时长（秒）
+        timeCount = api.fetchArchiveData(Player, Enums.ArchiveType.Int, 1009),
+
+        --等级
+        level = api.fetchArchiveData(Player, Enums.ArchiveType.Int, 1010),
+
+        --层数
+        layer = api.fetchArchiveData(Player, Enums.ArchiveType.Int, 1011),
+
+        --生命值
+        health = api.fetchArchiveData(Player, Enums.ArchiveType.Int, 1012),
+
+        --护盾值
+        defense = api.fetchArchiveData(Player, Enums.ArchiveType.Int, 1013),
+
+        --总经验值
+        totalExp = api.fetchArchiveData(Player, Enums.ArchiveType.Int, 1014),
+
+        --游戏统计数据
+        gameStats = {
+            --击败敌人数
+            kill = api.fetchArchiveData(Player, Enums.ArchiveType.Int, 1015),
+            --总伤害
+            totalDamage = api.fetchArchiveData(Player, Enums.ArchiveType.Int, 1016),
+            --总承伤
+            totalDefenseAtk = api.fetchArchiveData(Player, Enums.ArchiveType.Int, 1017),
+        },
+
+        gameSettings = {
+            autoAimEnabled = api.fetchArchiveData(Player, Enums.ArchiveType.Bool, 1018)
+        }
+    }
+
     logger.info("Game archive loaded")
-    logger.debug("Game archive data: " .. gameArchiveJson)
-    -- doLoadSavedGameArchive(game.object.data , gameArchiveJson)
-    game.object.init(json.parse(gameArchiveJson))
+    game.object.init(data)
 end
 
 
@@ -140,14 +175,20 @@ local function doStartNewGame()
 
     api.setTimeout(function()
         logger.info("camera init")
-        local cameraComponent = api.getUnitById(constant.GAME_CAMERA_COMPONENT_ID)
-        game.camera.init(cameraComponent)
+        game.camera.init()
     end, 40)
 
     api.setTimeout(function()
         logger.info("main turret lock init")
         game.object.enableMainTurretTowardsToCursor()
     end, 45)
+
+    api.setTimeout(function()
+        if PlayerSettings.enableComponentCache then
+            logger.info("cache manager init")
+            manager.cacheInit()
+        end
+    end, 50)
 
     -- 注册相机手势监听
     api.setTimeout(function()
@@ -165,9 +206,17 @@ local function doStartNewGame()
         api.registerGlobalCustomEventListener(constant.UI_CAMERA_MOVE_STOP_EVENT,
             function(unit, name, data)
                 logger.debug("camera move stop")
-                game.camera.ctrlMoveStop()
+                game.camera.handlerCameraStopCtrlMoveEvent()
             end)
     end, 50)
+
+
+    api.setTimeout(function()
+        logger.info("register rapid attack listener")
+        api.registerGlobalCustomEventListener(constant.UI_RAPID_ATTACK_EVENT, function()
+            game.object.mainTurretRapidAttack()
+        end)
+    end, 55)
 
     --场景初始化处理
     api.setTimeout(function()
@@ -265,7 +314,16 @@ local function init()
         PlayerSettings.enableVfx = not PlayerSettings.enableVfx
         refreshSettingsUI()
         uploadPlayerSettings(Player)
-        game.scene.setVfxRenderingStatus(PlayerSettings.enableVfx)
+        game.setVfxRenderingStatus(PlayerSettings.enableVfx)
+    end)
+
+    --注册缓存设置开关监听器
+    api.registerGlobalCustomEventListener(constant.UI_COMPONENT_CACHE_SETTING_SWITCH_EVENT, function()
+        logger.info("component cache setting toggled")
+        PlayerSettings.enableComponentCache = not PlayerSettings.enableComponentCache
+        refreshSettingsUI()
+        uploadPlayerSettings(Player)
+        game.setComponentCacheCreateStatus(PlayerSettings.enableComponentCache)
     end)
 
     --注册广告设置开关监听器
@@ -290,14 +348,6 @@ local function init()
 
 
     -- test
-
-
-
-
-
-
-
-
 end
 
 

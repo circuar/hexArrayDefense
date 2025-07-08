@@ -102,39 +102,45 @@ end
 
 
 local function loadGame()
-    local data = {
-        --游戏时长（秒）
-        timeCount = api.fetchArchiveData(Player, Enums.ArchiveType.Int, 1009),
+    local data = nil
 
-        --等级
-        level = api.fetchArchiveData(Player, Enums.ArchiveType.Int, 1010),
 
-        --层数
-        layer = api.fetchArchiveData(Player, Enums.ArchiveType.Int, 1011),
 
-        --生命值
-        health = api.fetchArchiveData(Player, Enums.ArchiveType.Int, 1012),
+    if checkSavedGameArchive() then
+        data = {
+            --游戏时长（秒）
+            timeCount = api.fetchArchiveData(Player, Enums.ArchiveType.Int, 1009),
 
-        --护盾值
-        defense = api.fetchArchiveData(Player, Enums.ArchiveType.Int, 1013),
+            --等级
+            level = api.fetchArchiveData(Player, Enums.ArchiveType.Int, 1010),
 
-        --总经验值
-        totalExp = api.fetchArchiveData(Player, Enums.ArchiveType.Int, 1014),
+            --层数
+            layer = api.fetchArchiveData(Player, Enums.ArchiveType.Int, 1011),
 
-        --游戏统计数据
-        gameStats = {
-            --击败敌人数
-            kill = api.fetchArchiveData(Player, Enums.ArchiveType.Int, 1015),
-            --总伤害
-            totalDamage = api.fetchArchiveData(Player, Enums.ArchiveType.Int, 1016),
-            --总承伤
-            totalDefenseAtk = api.fetchArchiveData(Player, Enums.ArchiveType.Int, 1017),
-        },
+            --生命值
+            health = api.fetchArchiveData(Player, Enums.ArchiveType.Int, 1012),
 
-        gameSettings = {
-            autoAimEnabled = api.fetchArchiveData(Player, Enums.ArchiveType.Bool, 1018)
+            --护盾值
+            defense = api.fetchArchiveData(Player, Enums.ArchiveType.Int, 1013),
+
+            --总经验值
+            totalExp = api.fetchArchiveData(Player, Enums.ArchiveType.Int, 1014),
+
+            --游戏统计数据
+            gameStats = {
+                --击败敌人数
+                kill = api.fetchArchiveData(Player, Enums.ArchiveType.Int, 1015),
+                --总伤害
+                totalDamage = api.fetchArchiveData(Player, Enums.ArchiveType.Int, 1016),
+                --总承伤
+                totalDefenseAtk = api.fetchArchiveData(Player, Enums.ArchiveType.Int, 1017),
+            },
+
+            gameSettings = {
+                autoAimEnabled = api.fetchArchiveData(Player, Enums.ArchiveType.Bool, 1018)
+            }
         }
-    }
+    end
 
     logger.info("Game archive loaded")
     game.object.init(data)

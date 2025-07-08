@@ -3,6 +3,7 @@ local api      = require("api")
 local logger   = require("api").logger
 local manager  = require("manager")
 local resource = require("resource")
+-- local UINodes  = require("Data.UINodes")
 
 local object   = {}
 local frame    = {}
@@ -73,10 +74,14 @@ object.data = {
     layer = 6,
 
     --生命值
-    health = 300,
+    health = 3600,
+
+    maxHealth = 3600,
 
     --护盾值
-    defense = 600,
+    defense = 1800,
+
+    maxDefense = 1800,
 
     --总经验值
     totalExp = 0,
@@ -106,6 +111,12 @@ object.data = {
 ---@field maxHealth integer
 ---@field maxDefense integer
 ---@field bulletTemplateIndex integer
+---@field bulletSpeed number
+---@field atkIntervalFrame integer
+---@field damageValuePerBullet integer
+---@field isDestroyed boolean
+---@field bulletNumPerAtk integer
+---@field bulletIntervalFrame integer
 
 ---@class TurretStatusData
 ---@field coolDownStatus boolean
@@ -134,21 +145,21 @@ object.enemyUnitProperties = {}
 object.bulletTemplates = {}
 
 object.mainTurretExtraData = {
-    maxBulletNum = 15,
+    maxBulletNum = 20,
     bulletLoadFrame = 90,
-    remainBulletNum = 15,
+    remainBulletNum = 20,
 
     rapidIsCoolDown = false,
-    rapidMaxBulletNum = 40,
-    remainRapidBulletNum = 40,
+    rapidMaxBulletNum = 60,
+    remainRapidBulletNum = 60,
     rapidLoadFrame = 450,
     rapidIntervalFrame = 3,
+    rapidBulletSpeed = 200,
+    damageValuePerRapidBullet = 15,
 
     rapidBulletCreateLeftOffset = math.Vector3(-3.75, 0.5, 5),
     rapidBulletCreateRightOffset = math.Vector3(3.75, 0.5, 5),
-    leftOrRightSelect = true,
-
-    rapidBulletSpeed = 250
+    leftOrRightSelect = true
 
 }
 
@@ -164,7 +175,9 @@ end
 
 ---初始化游戏对象
 function object.init(archiveData)
-    object.data = archiveData
+    if not archiveData == nil then
+        object.data = archiveData
+    end
 
     ---@type Unit[]
     object.baseHexComponent = resource.baseHexComponent
@@ -280,7 +293,86 @@ end
 ---@param enemyUnitData EnemyUnitData
 function object.enemyUnitAtk(enemyUnitData)
     local bulletCreatePosition = api.positionOf(enemyUnitData.base)
-    local bulletTemplate = object.bulletTemplates[enemyUnitData.bulletTemplateIndex]
+    local bulletTemplateIndex = enemyUnitData.bulletTemplateIndex
+    local bulletTemplate = object.bulletTemplates[bulletTemplateIndex]
+    local towards = math.Vector3(0, 0, 0) - bulletCreatePosition
+
+    local bullet = apiExport.createBullet(bulletTemplateIndex, bulletCreatePosition,
+        api.vector.rotationBetweenVec(bulletTemplate.towardsReferenceVec, towards))
+
+    api.setTimeout(function()
+        api.setUnitLinerVelocity(bullet, api.vector.resetVectorLength(towards, enemyUnitData.bulletSpeed))
+
+        api.extra.addUnitCollisionListener(bullet, function(selfUnit, withUnit, position)
+            apiExport.destroyBullet(1, bullet)
+            apiExport.createVfx(4136, position)
+
+            object.dealDamageToMainTurret(enemyUnitData.damageValuePerBullet)
+        end)
+    end, 1)
+end
+
+---@param enemyUnit EnemyUnitData
+function object.enableEnemyUnitAtkSearch(enemyUnit)
+    local enemyUnitAtkInterval = enemyUnit.atkIntervalFrame
+
+    local function delayCallback()
+        if enemyUnit.isDestroyed then
+            return
+        end
+        if (api.positionOf(enemyUnit.base) - math.Vector3(0, 80, 0)):length() < constant.ENEMY_ATK_MAX_DISTANCE then
+            local bulletNumLoop = 0
+            local function bulletLoopCallback()
+                if enemyUnit.isDestroyed or bulletNumLoop >= enemyUnit.bulletNumPerAtk then
+                    return
+                end
+                object.enemyUnitAtk(enemyUnit)
+                bulletNumLoop = bulletNumLoop + 1
+                api.setTimeout(bulletLoopCallback, enemyUnit.bulletIntervalFrame)
+            end
+            bulletLoopCallback()
+        end
+        api.setTimeout(delayCallback, enemyUnitAtkInterval)
+    end
+    delayCallback()
+end
+
+---对敌方单位造成伤害
+---@param enemyUnitData EnemyUnitData
+---@param damageValue integer
+function object.dealDamageToEnemyUnit(enemyUnitData, damageValue)
+    local realDamage = damageValue - enemyUnitData.currentDefense
+    if realDamage > 0 then
+        local healthAfterDamage = enemyUnitData.currentHealth - realDamage
+        if healthAfterDamage < 0 then
+            object.defeatEnemyUnit(enemyUnitData)
+            return
+        end
+        enemyUnitData.currentHealth = healthAfterDamage
+    end
+    enemyUnitData.currentDefense = math.max(0, enemyUnitData.currentDefense - damageValue)
+    hud.updateTargetInfoIfFocus(enemyUnitData, true)
+end
+
+---击败敌方单位
+---@param enemyUnitData EnemyUnitData
+function object.defeatEnemyUnit(enemyUnitData)
+    -- 数组移除
+    for index, value in ipairs(object.enemyUnitArray) do
+        if value == enemyUnitData then
+            table.remove(object.enemyUnitArray, index)
+            break
+        end
+    end
+    enemyUnitData.isDestroyed = true
+    --相机处理
+    if camera.updater.targetUnit == enemyUnitData.base then
+        camera.updater.cancelLock()
+        hud.setCurrentTargetInfoDisplayStatus(false)
+    end
+
+    api.destroyUnit(enemyUnitData.base)
+    enemyUnitData.base = nil
 end
 
 ---comment
@@ -346,6 +438,7 @@ function object.mainTurretAtk()
     local bulletRotation = api.vector.rotationBetweenVec(bulletTemplate.towardsReferenceVec, bulletTargetDirection)
 
     local bullet = apiExport.createBullet(1, bulletCreatePosition, bulletRotation)
+    api.setUnitCollisionStatusWith(bullet, resource.turretCollision, false)
 
 
     -- apiExport.createVfx()
@@ -355,6 +448,11 @@ function object.mainTurretAtk()
         local collisionCallback = function(selfUnit, withUnit, position)
             apiExport.destroyBullet(1, bullet)
             apiExport.createVfx(4136, position)
+            for index, value in ipairs(object.enemyUnitArray) do
+                if value.base == withUnit then
+                    object.dealDamageToEnemyUnit(value, turretComponentData.damageValuePerBullet)
+                end
+            end
         end
         -- api.registerUnitTriggerEventListener(bullet, { EVENT.SPEC_OBSTACLE_CONTACT_BEGAN }, collisionCallback)
         api.extra.addUnitCollisionListener(bullet, collisionCallback)
@@ -431,13 +529,19 @@ function object.mainTurretRapidAttack()
         local bulletTargetDirection = calMainTurretBulletTowards(bulletCreatePosition, bulletSpeed)
         local bulletRotation = api.vector.rotationBetweenVec(bulletTemplate.towardsReferenceVec, bulletTargetDirection)
         local bullet = apiExport.createBullet(2, bulletCreatePosition, bulletRotation)
-
+        api.setUnitCollisionStatusWith(bullet, resource.turretCollision, false)
         --添加逻辑
         api.setTimeout(function()
             api.setUnitLinerVelocity(bullet, api.vector.resetVectorLength(bulletTargetDirection, bulletSpeed))
             local collisionCallback = function(selfUnit, withUnit, position)
                 apiExport.destroyBullet(2, bullet)
                 apiExport.createVfx(4136, position)
+
+                for index, value in ipairs(object.enemyUnitArray) do
+                    if value.base == withUnit then
+                        object.dealDamageToEnemyUnit(value, turretExtData.damageValuePerRapidBullet)
+                    end
+                end
             end
             api.extra.addUnitCollisionListener(bullet, collisionCallback)
         end, 1)
@@ -451,6 +555,27 @@ function object.mainTurretRapidAttack()
         api.setTimeout(atkLoop, turretExtData.rapidIntervalFrame)
     end
     atkLoop()
+end
+
+function object.gameOver()
+    logger.info("game over")
+end
+
+function object.dealDamageToMainTurret(damageValue)
+    local originDefense = object.data.defense
+    local realDamage = damageValue - originDefense
+
+    if realDamage > 0 then
+        object.data.health = object.data.health - realDamage
+        if object.data.health <= 0 then
+            object.gameOver()
+            return
+        end
+    end
+
+    object.data.defense = math.max(originDefense - damageValue, 0)
+
+    hud.updateSelfInfo(object.data.maxHealth, object.data.health, object.data.maxDefense, object.data.defense)
 end
 
 -- test
@@ -563,7 +688,7 @@ function camera.init()
         [Enums.CameraPropertyType.BIND_MODE_OFFSET_Z] = (-camera.minCameraDistance * camera.cameraTowards).z,
         [Enums.CameraPropertyType.DIST] = 50.0,
         [Enums.CameraPropertyType.BIND_MODE_YAW] = -135.0,
-        [Enums.CameraPropertyType.BIND_MODE_PITCH] = 35.0,
+        [Enums.CameraPropertyType.BIND_MODE_PITCH] = 35.2644,
         [Enums.CameraPropertyType.FOV] = 60.0
     })
 end
@@ -586,14 +711,21 @@ function camera.stepSmoothMove(startPos, endPos, duration)
         (stepPos - startPos) * constant.LOGIC_FPS / duration, false)
 end
 
-function camera.lockToUnit(unit)
-    camera.updater.lockTo(unit)
+---@param enemyUnitData EnemyUnitData
+function camera.lockToUnit(enemyUnitData)
+    camera.updater.lockTo(enemyUnitData.base)
     camera.updater.run()
+
+    hud.setCurrentTargetInfo(enemyUnitData.currentHealth, enemyUnitData.maxHealth, false, enemyUnitData.currentDefense,
+        enemyUnitData.maxDefense)
+    hud.setCurrentTargetInfoDisplayStatus(true)
+
     logger.debug("camera locked.")
 end
 
 function camera.cancelLock()
     camera.updater.cancelLock()
+    hud.setCurrentTargetInfoDisplayStatus(false)
     logger.debug("camera cancel lock.")
 end
 
@@ -616,7 +748,7 @@ function camera.ctrlMoveStop()
         -- 搜索敌方单位
         for _, value in ipairs(object.enemyUnitArray) do
             if (api.positionOf(camera.cameraBindComponent) - api.positionOf(value.base)):length() < constant.CAMERA_ADSORBED_DISTANCE then
-                camera.lockToUnit(value.base)
+                camera.lockToUnit(value)
                 break
             end
         end
@@ -646,6 +778,9 @@ end
 function camera.ctrlMove(towards, restoreInitHeight)
     camera.isCtrlMoving = true
     -- hud.setCursorStatus(constant.hudStatusEnum.NORMAL)
+
+    hud.setCurrentTargetInfoDisplayStatus(false)
+
     if restoreInitHeight then
         local expectPosition = api.positionOf(camera.cameraBindComponent)
         expectPosition.y = camera.cameraDefaultHeight
@@ -669,6 +804,7 @@ function hud.setCursorStatus(status)
     api.sendGlobalCustomEvent(constant.UI_BRIDGE_SET_CURSOR_STATUS, { status = status })
 end
 
+---@deprecated
 function hud.updateTargetInfo(totalHealth, currentHealth, totalDefense, currentDefense, healthSmearDuration)
     api.sendGlobalCustomEvent(constant.UI_BRIDGE_SET_TARGET_INFO, {
         maxHealth = totalHealth,
@@ -680,14 +816,11 @@ function hud.updateTargetInfo(totalHealth, currentHealth, totalDefense, currentD
 end
 
 function hud.updateSelfInfo(totalHealth, currentHealth, totalDefense, currentDefense)
-    api.sendGlobalCustomEvent(constant.UI_BRIDGE_SET_SELF_INFO, {
-        maxHealth = totalHealth,
-        currentHealth = currentHealth,
-        maxDefense = totalDefense,
-        currentDefense = currentDefense
-    })
+    api.setUIProgressBarData(Player, "1519736575|1156235444", currentHealth, totalHealth, 0.3)
+    api.setUIProgressBarData(Player, "1519736575|1943658332", currentDefense, totalDefense, 0.3)
 end
 
+---@deprecated
 function hud.updateMatrixStatusInfo(activeNodeNum, totalNodeNum, level)
     api.sendGlobalCustomEvent(constant.UI_BRIDGE_SET_MATRIX_INFO, {
         activeNodeNum = activeNodeNum,
@@ -735,6 +868,32 @@ function hud.setRapidBulletInfo(currentBulletNum, maxBulletNum)
     api.sendGlobalCustomEvent(constant.UI_BRIDGE_SET_RAPID_BULLET_DATA,
         { remainRapidBulletNum = currentBulletNum, maxRapidBulletNum = maxBulletNum })
     -- hud.setBulletLoadProgress(currentBulletNum * 100 // maxBulletNum, 0.1)
+end
+
+function hud.setCurrentTargetInfo(currentHealth, maxHealth, smearEnabled, currentDefense, maxDefense)
+    api.setUIProgressBarData(Player, "1519736575|1722939135", currentHealth, maxHealth, 0.0)
+    if smearEnabled then
+        api.setUIProgressBarData(Player, "1519736575|1220800494", currentHealth, maxHealth, 0.4)
+    else
+        api.setUIProgressBarData(Player, "1519736575|1220800494", currentHealth, maxHealth, 0.0)
+    end
+
+    api.setUIProgressBarData(Player, "1519736575|1653360581", currentDefense, maxDefense, 0.0)
+end
+
+---设置目标信息是否显示
+---@param visible any
+function hud.setCurrentTargetInfoDisplayStatus(visible)
+    api.setUINodeVisibleStatus(Player, "1519736575|1376576541", visible)
+end
+
+---如果是目标，就更新targetInfo
+---@param enemyUnitData EnemyUnitData
+function hud.updateTargetInfoIfFocus(enemyUnitData, smearEnabled)
+    if camera.updater.targetUnit == enemyUnitData.base then
+        hud.setCurrentTargetInfo(enemyUnitData.currentHealth, enemyUnitData.maxHealth, smearEnabled,
+            enemyUnitData.currentDefense, enemyUnitData.maxDefense)
+    end
 end
 
 -- scene =======================================================================
@@ -836,14 +995,23 @@ function scene.generateEnemyUnit()
             centerComponent = centerComponent,
             templateIndex = generateIndex,
             currentHealth = enemyUnitProperties.maxHealthValue,
-            currentDefense = enemyUnitProperties.currentDefense,
+            currentDefense = enemyUnitProperties.maxDefenseValue,
             maxHealth = enemyUnitProperties.maxHealthValue,
             maxDefense = enemyUnitProperties.maxDefenseValue,
-            bulletTemplateIndex = enemyUnitProperties.bulletTemplateIndex
+            bulletTemplateIndex = enemyUnitProperties.bulletTemplateIndex,
+            bulletSpeed = enemyUnitProperties.bulletSpeed,
+            damageValuePerBullet = enemyUnitProperties.damageValuePerBullet,
+            atkIntervalFrame = enemyUnitProperties.atkIntervalFrame,
+            isDestroyed = false,
+            bulletNumPerAtk = enemyUnitProperties.bulletNumPerAtk,
+            bulletIntervalFrame = enemyUnitProperties.bulletIntervalFrame
         }
 
         table.insert(
             object.enemyUnitArray, enemyUnitData)
+
+
+        object.enableEnemyUnitAtkSearch(enemyUnitData)
         logger.debug("enemy unit finished")
     end, 6)
 

@@ -1,7 +1,7 @@
 local api = require("api")
 
 local gameCameraBindUnit = api.getUnitById(1268527012)
-
+local turretCollision = api.getUnitById(1555432595)
 
 local baseHexComponentId = {
     -- c1
@@ -121,7 +121,9 @@ local bulletTemplates = {
         defaultZoom = math.Vector3(0.15, 4, 0.15)
     },
     [3] = {
-
+        presetId = 1073836043,
+        towardsReferenceVec = math.Vector3(0, 1, 0),
+        defaultZoom = math.Vector3(0.3, 4, 0.3)
     }
 }
 
@@ -140,6 +142,7 @@ local bulletTemplates = {
 ---@field atkMethodType integer
 ---@field atkCoolDownFrame number
 ---@field bulletSpeed number
+---@field damageValuePerBullet integer
 ---松散数组
 ---@type TurretComponentData[]
 local turretComponentData = {
@@ -155,7 +158,8 @@ local turretComponentData = {
         isMainTurret = true,
         atkMethodType = 1,
         atkCoolDownFrame = 10,
-        bulletSpeed = 150
+        bulletSpeed = 150,
+        damageValuePerBullet = 20,
     },
     -- [2] = {
     --     base = api.getUnitById(),
@@ -183,7 +187,11 @@ local enemyUnitProperties = {
         damageValuePerBullet = 20,
         maxHealthValue = 400,
         maxDefenseValue = 300,
-        bulletTemplateIndex = 1
+        bulletTemplateIndex = 3,
+        bulletSpeed = 100,
+        atkIntervalFrame = 101,
+        bulletNumPerAtk = 3,
+        bulletIntervalFrame = 17
     }
 }
 
@@ -192,6 +200,7 @@ local enemyUnitProperties = {
 
 return {
     gameCameraBindUnit = gameCameraBindUnit,
+    turretCollision = turretCollision,
     baseHexComponent = baseHexComponent,
     turretComponentData = turretComponentData,
     enemyUnitTemplates = enemyUnitTemplates,

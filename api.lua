@@ -286,6 +286,35 @@ function api.destroyUnitWithSubUnit(unit)
     GameAPI.destroy_unit_with_children(unit, true)
 end
 
+---设置进度条数据
+---@param player Role
+---@param progressBar string
+---@param current integer
+---@param max integer
+---@param duration Fixed
+function api.setUIProgressBarData(player, progressBar, current, max, duration)
+    -- player.set_progressbar_current(progressBarm, current)
+    player.set_progressbar_max(progressBar, max)
+    player.set_progressbar_transition(progressBar, current, duration)
+end
+
+---设置进度条进度
+---@param player Role
+---@param progressBar string
+---@param current integer
+---@param duration Fixed
+function api.setProgressBarProgress(player, progressBar, current, duration)
+    player.set_progressbar_transition(progressBar, current, duration)
+end
+
+---设置ui节点可见性
+---@param player Role
+---@param uiNode string
+---@param status boolean
+function api.setUINodeVisibleStatus(player, uiNode, status)
+    player.set_node_visible(uiNode, status)
+end
+
 -- EXTRA =======================================================================
 local vector = {}
 local json = {}

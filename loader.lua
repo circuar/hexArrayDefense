@@ -1,9 +1,10 @@
-local constant = require("constant")
-local game     = require("game")
-local api      = require("api")
-local logger   = require("api").logger
-local json     = require("api").json
-local manager  = require("manager")
+local constant  = require("constant")
+local game      = require("game")
+local api       = require("api")
+local logger    = require("api").logger
+local json      = require("api").json
+local manager   = require("manager")
+local vfxRender = require("vfxRender")
 
 ---显示加载界面
 ---@param player Role 指定玩家
@@ -226,6 +227,7 @@ local function doStartNewGame()
 
     --场景初始化处理
     api.setTimeout(function()
+        game.scene.init()
         game.scene.gameStartHexRunMotor()
         game.scene.initEnemyUnitGenerator()
     end, 80)
@@ -320,7 +322,7 @@ local function init()
         PlayerSettings.enableVfx = not PlayerSettings.enableVfx
         refreshSettingsUI()
         uploadPlayerSettings(Player)
-        game.setVfxRenderingStatus(PlayerSettings.enableVfx)
+        vfxRender.setVfxRenderingStatus(PlayerSettings.enableVfx)
     end)
 
     --注册缓存设置开关监听器
@@ -351,36 +353,7 @@ local function init()
         logger.info("cancel delete saved game data")
         api.sendUICustomEvent(Player, constant.UI_HIDE_DELETE_ARCHIVE_EVENT, {})
     end)
-
-
-    -- test
 end
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
 
 
 

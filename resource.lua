@@ -113,26 +113,59 @@ local bulletTemplates = {
     [1] = {
         presetId = 1073774641,
         towardsReferenceVec = math.Vector3(0, 1, 0),
-        defaultZoom = math.Vector3(0.2, 5, 0.2)
+        defaultZoom = math.Vector3(0.2, 5, 0.2),
+        destroyEffectPreset = {
+            id = 4136,
+            rotation = math.Quaternion(0, 0, 0),
+            zoom = 2.0,
+            duration = 5.0,
+            speed = 1.0
+        }
     },
     [2] = {
         presetId = 1073832018,
         towardsReferenceVec = math.Vector3(0, 1, 0),
-        defaultZoom = math.Vector3(0.15, 4, 0.15)
+        defaultZoom = math.Vector3(0.15, 4, 0.15),
+        destroyEffectPreset = {
+            id = 2540,
+            rotation = math.Quaternion(0, 0, 0),
+            zoom = 1.5,
+            duration = 5.0,
+            speed = 1.0
+        }
     },
     [3] = {
         presetId = 1073836043,
         towardsReferenceVec = math.Vector3(0, 1, 0),
-        defaultZoom = math.Vector3(0.3, 4, 0.3)
+        defaultZoom = math.Vector3(0.3, 4, 0.3),
+        destroyEffectPreset = {
+            id = 829,
+            rotation = math.Quaternion(0, 0, 0),
+            zoom = 3.0,
+            duration = 5.0,
+            speed = 1.0
+        }
     }
 }
 
 
 
+---@class TurretFireEffectData
+---@field id integer
+---@field towardsReferenceVec Vector3
+---@field localOffset table
+---@field zoom Fixed
+---@field duration Fixed
+---@field speed Fixed
+
+---@class SearchEnemyAngle
+---@field min integer
+---@field max integer
+
 
 ---@class TurretComponentData
 ---@field base Unit
----@field basePosition Vector3
+-- -@field basePosition Vector3
 ---@field rotationPart Unit
 ---@field rotationPartBaseOffset Vector3
 ---@field towardsReferenceVec Vector3
@@ -141,33 +174,138 @@ local bulletTemplates = {
 ---@field isMainTurret boolean
 ---@field atkMethodType integer
 ---@field atkCoolDownFrame number
+---@field consecutiveShotCount integer|nil
+---@field laserSocket Unit|nil
 ---@field bulletSpeed number
 ---@field damageValuePerBullet integer
+---@field fireEffectPreset TurretFireEffectData
+---@field searchEnemyAngle SearchEnemyAngle
+---@field enabled boolean
 ---松散数组
 ---@type TurretComponentData[]
 local turretComponentData = {
     --无运动器，未绑定
     [1] = {
         base = api.getUnitById(1466853682),
-        basePosition = math.Vector3(0, 59, 0),
         rotationPart = api.getUnitById(1812918448),
         rotationPartBaseOffset = math.Vector3(0, 5, 0),
         towardsReferenceVec = math.Vector3(0, 0, 1),
         bulletCreateOffset = math.Vector3(0, -0.5, 14),
         bulletTemplateIndex = 1,
         isMainTurret = true,
+        -- 1：普通单发
+        -- 2：连发
+        -- 3：激光
         atkMethodType = 1,
-        atkCoolDownFrame = 10,
+        atkCoolDownFrame = 7,
+        laserSocket = nil,
+        consecutiveShotCount = 5,
         bulletSpeed = 150,
-        damageValuePerBullet = 20,
+        damageValuePerBullet = 30,
+        fireEffectPreset = {
+            id = 2523,
+            ---x:径向 y:竖直
+            localOffset = { x = 2, y = 0 },
+            towardsReferenceVec = math.Vector3(0, 0, 1),
+
+            zoom = 1.5,
+            duration = 1.0,
+            speed = 1.0
+        },
+        searchEnemyAngle = { min = 0, max = 360 },
+        enabled = true
     },
-    -- [2] = {
-    --     base = api.getUnitById(),
-    --     rotationPart = api.getUnitById(),
-    --     towardsReferenceVec = math.Vector3(),
-    --     bulletCreatePoint = math.Vector3(),
-    --     bulletTemplateIndex = 1
-    -- },
+    [2] = {
+        base = api.getUnitById(1356177493),
+        rotationPart = api.getUnitById(1060738399),
+        rotationPartBaseOffset = math.Vector3(0, 7, 0),
+        towardsReferenceVec = math.Vector3(1, 0, 0),
+        bulletCreateOffset = math.Vector3(5, 0, 0),
+        bulletTemplateIndex = 1,
+        isMainTurret = false,
+        -- 1：普通单发
+        -- 2：连发
+        -- 3：激光
+        atkMethodType = 1,
+        atkCoolDownFrame = 30,
+        laserSocket = nil,
+        consecutiveShotCount = nil,
+        bulletSpeed = 150,
+        damageValuePerBullet = 30,
+        fireEffectPreset = {
+            id = 2523,
+            ---x:径向 y:竖直
+            localOffset = { x = 2, y = 0 },
+            towardsReferenceVec = math.Vector3(0, 0, 1),
+
+            zoom = 1.5,
+            duration = 1.0,
+            speed = 1.0
+        },
+        searchEnemyAngle = { min = 300, max = 60 },
+        enabled = false
+    },
+    [4] = {
+        base = api.getUnitById(1810461588),
+        rotationPart = api.getUnitById(1252930496),
+        rotationPartBaseOffset = math.Vector3(0, 7, 0),
+        towardsReferenceVec = math.Vector3(1, 0, 0),
+        bulletCreateOffset = math.Vector3(5, 0, 0),
+        bulletTemplateIndex = 1,
+        isMainTurret = false,
+        -- 1：普通单发
+        -- 2：连发
+        -- 3：激光
+        atkMethodType = 1,
+        atkCoolDownFrame = 30,
+        laserSocket = nil,
+        consecutiveShotCount = nil,
+        bulletSpeed = 150,
+        damageValuePerBullet = 30,
+        fireEffectPreset = {
+            id = 2523,
+            ---x:径向 y:竖直
+            localOffset = { x = 2, y = 0 },
+            towardsReferenceVec = math.Vector3(0, 0, 1),
+
+            zoom = 1.5,
+            duration = 1.0,
+            speed = 1.0
+        },
+        searchEnemyAngle = { min = 60, max = 180 },
+        enabled = false
+
+    },
+    [6] = {
+        base = api.getUnitById(1251513144),
+        rotationPart = api.getUnitById(1619392026),
+        rotationPartBaseOffset = math.Vector3(0, 7, 0),
+        towardsReferenceVec = math.Vector3(1, 0, 0),
+        bulletCreateOffset = math.Vector3(5, 0, 0),
+        bulletTemplateIndex = 1,
+        isMainTurret = false,
+        -- 1：普通单发
+        -- 2：连发
+        -- 3：激光
+        atkMethodType = 1,
+        atkCoolDownFrame = 30,
+        laserSocket = nil,
+        consecutiveShotCount = nil,
+        bulletSpeed = 150,
+        damageValuePerBullet = 30,
+        fireEffectPreset = {
+            id = 2523,
+            ---x:径向 y:竖直
+            localOffset = { x = 2, y = 0 },
+            towardsReferenceVec = math.Vector3(0, 0, 1),
+
+            zoom = 1.5,
+            duration = 1.0,
+            speed = 1.0
+        },
+        searchEnemyAngle = { min = 180, max = 300 },
+        enabled = false
+    }
 
 }
 

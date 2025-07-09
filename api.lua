@@ -761,6 +761,24 @@ function extra.addUnitCollisionListener(unit, callback)
     api.registerUnitTriggerEventListener(unit, { EVENT.SPEC_OBSTACLE_CONTACT_BEGAN }, callbackProxy)
 end
 
+---组件销毁回调
+---@param unit Obstacle
+---@param callback function
+function extra.addObstacleDestroyListener(unit, callback)
+    api.registerUnitTriggerEventListener(unit, { EVENT.SPEC_OBSTACLE_DESTROY }, callback)
+end
+
+--- 对给定数组进行原地洗牌
+---@param array table 要打乱的数组
+function extra.shuffle(array)
+    local random = api.random.new()
+    for i = #array, 2, -1 do
+        -- local j = math.random(1, i)
+        local j = random:nextIntBound(i) + 1
+        array[i], array[j] = array[j], array[i]
+    end
+end
+
 --random:
 ---@class random
 ---@field seed number
@@ -770,11 +788,11 @@ random.__index = random
 local MASK32   = 0xFFFFFFFF
 
 --- 构造一个 Random 实例
---- @param seed integer? 初始种子（可选，不传则用61）
+--- @param seed integer? 初始种子
 --- @return random
 function random.new(seed)
     local self = setmetatable({}, random)
-    seed = seed or 61
+    seed = seed or LuaAPI.rand()
 
     self.state = (seed ~= 0) and (seed & MASK32) or 1
     return self

@@ -8,8 +8,8 @@ Player          = nil
 
 ---@type table<string, any>
 PlayerSettings  = {
-    enableVfx = true,          -- 是否启用特效
-    enableAdService = true,    -- 是否启用广告
+    enableVfx = true,             -- 是否启用特效
+    enableAdService = true,       -- 是否启用广告
     enableComponentCache = false, --是否启用缓存创建子弹
 }
 

@@ -1,15 +1,17 @@
-local constant = require("constant")
-local api      = require("api")
-local logger   = require("api").logger
-local manager  = require("manager")
-local resource = require("resource")
+local constant  = require("constant")
+local api       = require("api")
+local logger    = require("api").logger
+local manager   = require("manager")
+local resource  = require("resource")
+local vfxRender = require("vfxRender")
+local bridgeLib = require("bridgeLib")
 -- local UINodes  = require("Data.UINodes")
 
-local object   = {}
-local frame    = {}
-local camera   = {}
-local hud      = {}
-local scene    = {}
+local object    = {}
+local frame     = {}
+local camera    = {}
+local hud       = {}
+local scene     = {}
 
 
 local originCreateBullet  = function(bulletTemplateIndex, createPosition, initialRotation)
@@ -20,6 +22,18 @@ local originCreateBullet  = function(bulletTemplateIndex, createPosition, initia
         initialRotation,
         bulletTemplate.defaultZoom)
     api.setUnitCollisionStatusWith(bullet, resource.gameCameraBindUnit, false)
+
+    api.extra.addObstacleDestroyListener(bullet, function()
+        local presetParam = bulletTemplate.destroyEffectPreset
+        vfxRender.createVfx(
+            presetParam.id,
+            api.positionOf(bullet),
+            presetParam.rotation,
+            presetParam.zoom,
+            presetParam.duration,
+            presetParam.speed, false)
+    end)
+
     return bullet
 end
 
@@ -28,27 +42,14 @@ local originDestroyBullet = function(bulletTemplateIndex, bulletUnit)
 end
 
 local apiExport           = {
-    createVfx = api.createVFX,
-    createVfxWithSocket = api.createVFXWithSocket,
+
     createBullet = originCreateBullet,
     destroyBullet = originDestroyBullet,
 
 }
 
 
----设置场景特效状态
----@param status boolean
-local function setVfxRenderingStatus(status)
-    if status then
-        apiExport.createVfx = api.createVfxApi
-        apiExport.createVfxWithSocket = api.createVFXWithSocket
-    else
-        apiExport.createVfx = function() end
-        apiExport.createVfxWithSocket = function() end
-    end
-end
-
----设置场景特效状态
+---设置缓存状态
 ---@param status boolean
 local function setComponentCacheCreateStatus(status)
     if status then
@@ -122,6 +123,11 @@ object.data = {
 ---@field coolDownStatus boolean
 
 
+---@type integer[]
+object.turretAutoAtkScanIndexSequence = {}
+
+object.turretAutoAtkScanFrameHandlerIndex = nil
+
 ---敌方单位数组
 ---@type EnemyUnitData[]
 object.enemyUnitArray = {}
@@ -146,7 +152,7 @@ object.bulletTemplates = {}
 
 object.mainTurretExtraData = {
     maxBulletNum = 20,
-    bulletLoadFrame = 90,
+    bulletLoadFrame = 60,
     remainBulletNum = 20,
 
     rapidIsCoolDown = false,
@@ -159,7 +165,18 @@ object.mainTurretExtraData = {
 
     rapidBulletCreateLeftOffset = math.Vector3(-3.75, 0.5, 5),
     rapidBulletCreateRightOffset = math.Vector3(3.75, 0.5, 5),
-    leftOrRightSelect = true
+    leftOrRightSelect = true,
+
+    fireEffectPreset = {
+        id = 2134,
+        ---x:径向 y:竖直
+        localOffset = { x = 2, y = 0 },
+        towardsReferenceVec = math.Vector3(0, 0, 1),
+
+        zoom = 4.0,
+        duration = 1.0,
+        speed = 1.0
+    }
 
 }
 
@@ -175,7 +192,7 @@ end
 
 ---初始化游戏对象
 function object.init(archiveData)
-    if not archiveData == nil then
+    if archiveData ~= nil then
         object.data = archiveData
     end
 
@@ -305,7 +322,7 @@ function object.enemyUnitAtk(enemyUnitData)
 
         api.extra.addUnitCollisionListener(bullet, function(selfUnit, withUnit, position)
             apiExport.destroyBullet(1, bullet)
-            apiExport.createVfx(4136, position)
+            -- apiExport.createVfx(4136, position)
 
             object.dealDamageToMainTurret(enemyUnitData.damageValuePerBullet)
         end)
@@ -392,13 +409,18 @@ function object.calMovingUnitExpectPosition(
     return api.vector.resetVectorLength(targetVelocity, x) + targetUnitCurrentPosition
 end
 
+---计算子弹创建位置
+---@param turretComponentData TurretComponentData
+---@param rawOffsetVector Vector3
+---@return Vector3
 local function calBulletCreatePosition(turretComponentData, rawOffsetVector)
     -- local rawBulletCreateOffset = turretComponentData.bulletCreateOffset
     local turretRotation = api.rotationOf(turretComponentData.rotationPart)
-    return turretComponentData.basePosition + turretComponentData.rotationPartBaseOffset +
+    return api.positionOf(turretComponentData.base) + turretComponentData.rotationPartBaseOffset +
         api.vector.rotateVectorByQuaternion(rawOffsetVector, turretRotation)
 end
 
+---（主炮塔使用）
 local function calMainTurretBulletTowards(bulletCreatePosition, bulletSpeed)
     local cameraTargetUnit = camera.updater.targetUnit
     if cameraTargetUnit then
@@ -417,6 +439,20 @@ local function calMainTurretBulletTowards(bulletCreatePosition, bulletSpeed)
         local targetPosition = math.Vector3(targetXZPosition.x, cameraPosition.y, targetXZPosition.z)
         return targetPosition - bulletCreatePosition
     end
+end
+
+---计算子弹朝向（带有目标参数）
+---@param bulletCreatePosition Vector3
+---@param bulletSpeed number
+---@param enemyUnit Unit
+---@return Vector3
+local function calTurretBulletTowards(bulletCreatePosition, bulletSpeed, enemyUnit)
+    local targetUnitCurrentPosition = api.positionOf(enemyUnit)
+    local targetVel = api.velocityOf(enemyUnit)
+    local distance = (targetUnitCurrentPosition - bulletCreatePosition):length()
+    local bulletTargetPosition = object.calMovingUnitExpectPosition(targetUnitCurrentPosition, targetVel, distance,
+        bulletSpeed)
+    return bulletTargetPosition - bulletCreatePosition
 end
 
 
@@ -440,6 +476,18 @@ function object.mainTurretAtk()
     local bullet = apiExport.createBullet(1, bulletCreatePosition, bulletRotation)
     api.setUnitCollisionStatusWith(bullet, resource.turretCollision, false)
 
+    -- 开火特效
+    local effectData = turretComponentData.fireEffectPreset
+    vfxRender.createVfx(
+        effectData.id,
+        bulletCreatePosition + api.vector.resetVectorLength(bulletTargetDirection, effectData.localOffset.x) +
+        math.Vector3(0, effectData.localOffset.y, 0),
+        api.vector.rotationBetweenVec(effectData.towardsReferenceVec, bulletTargetDirection),
+        effectData.zoom,
+        effectData.duration,
+        effectData.speed,
+        false
+    )
 
     -- apiExport.createVfx()
 
@@ -447,7 +495,7 @@ function object.mainTurretAtk()
         api.setUnitLinerVelocity(bullet, api.vector.resetVectorLength(bulletTargetDirection, bulletSpeed))
         local collisionCallback = function(selfUnit, withUnit, position)
             apiExport.destroyBullet(1, bullet)
-            apiExport.createVfx(4136, position)
+            -- apiExport.createVfx(4136, position)
             for index, value in ipairs(object.enemyUnitArray) do
                 if value.base == withUnit then
                     object.dealDamageToEnemyUnit(value, turretComponentData.damageValuePerBullet)
@@ -529,13 +577,28 @@ function object.mainTurretRapidAttack()
         local bulletTargetDirection = calMainTurretBulletTowards(bulletCreatePosition, bulletSpeed)
         local bulletRotation = api.vector.rotationBetweenVec(bulletTemplate.towardsReferenceVec, bulletTargetDirection)
         local bullet = apiExport.createBullet(2, bulletCreatePosition, bulletRotation)
+
+        -- 开火特效
+        local effectData = turretExtData.fireEffectPreset
+        vfxRender.createVfx(
+            effectData.id,
+            bulletCreatePosition + api.vector.resetVectorLength(bulletTargetDirection, effectData.localOffset.x) +
+            math.Vector3(0, effectData.localOffset.y, 0),
+            api.vector.rotationBetweenVec(effectData.towardsReferenceVec, bulletTargetDirection),
+            effectData.zoom,
+            effectData.duration,
+            effectData.speed,
+            false
+        )
+
+
         api.setUnitCollisionStatusWith(bullet, resource.turretCollision, false)
         --添加逻辑
         api.setTimeout(function()
             api.setUnitLinerVelocity(bullet, api.vector.resetVectorLength(bulletTargetDirection, bulletSpeed))
             local collisionCallback = function(selfUnit, withUnit, position)
                 apiExport.destroyBullet(2, bullet)
-                apiExport.createVfx(4136, position)
+                -- apiExport.createVfx(4136, position)
 
                 for index, value in ipairs(object.enemyUnitArray) do
                     if value.base == withUnit then
@@ -576,6 +639,283 @@ function object.dealDamageToMainTurret(damageValue)
     object.data.defense = math.max(originDefense - damageValue, 0)
 
     hud.updateSelfInfo(object.data.maxHealth, object.data.health, object.data.maxDefense, object.data.defense)
+end
+
+---生成扫描序列
+---@param turretDataArray TurretComponentData
+---@param output table
+local function generateScanIndexSequence(turretDataArray, output)
+    for index = 2, 91 do
+        if turretDataArray[index] ~= nil then
+            table.insert(output, index)
+        end
+    end
+
+    api.extra.shuffle(output)
+end
+
+
+
+function object.enableTurretAutoAtk()
+    logger.info("enable turret auto attack")
+
+    -- 初始化扫描索引
+    object.turretAutoAtkScanIndexSequence = {}
+    generateScanIndexSequence(object.turretComponentData, object.turretAutoAtkScanIndexSequence)
+
+    local frameLoopInterval = constant.TURRET_AUTO_ATK_SCAN_INTERVAL -- 60
+
+    local sequencePointer = 1
+    local frameStatusCount = 0
+
+    local function frameLoop()
+        if sequencePointer <= #object.turretAutoAtkScanIndexSequence then
+            local operationTurretDataIndex = object.turretAutoAtkScanIndexSequence[sequencePointer]
+            if frameStatusCount % 2 == 0 and object.turretComponentData[operationTurretDataIndex].enabled then
+                object.turretAttack(operationTurretDataIndex)
+            end
+        end
+
+        frameStatusCount = (frameStatusCount + 1) % frameLoopInterval -- [0, 59]
+        sequencePointer = frameStatusCount // 2 + 1
+    end
+
+    object.turretAutoAtkScanFrameHandlerIndex = api.extra.addFramePreHandler(frameLoop)
+end
+
+local function isAngleInRange(angle, minAngle, maxAngle)
+    local range = ((maxAngle - minAngle) % 360 + 360) % 360
+    local delta = ((angle - minAngle) % 360 + 360) % 360
+    return delta <= range
+end
+
+local function searchEnemy(minAngle, maxAngle)
+    for index, enemy in ipairs(object.enemyUnitArray) do
+        local pos = api.positionOf(enemy.base)
+        local angle = api.vector.angleWithX(pos)
+
+        if isAngleInRange(angle, minAngle, maxAngle) then
+            logger.debug(tostring(pos))
+            logger.debug(angle)
+            return enemy
+        end
+    end
+    return nil
+end
+
+local function doTurretBulletAtk(turretData, targetData)
+    local bulletCreatePosition = calBulletCreatePosition(turretData, turretData.bulletCreateOffset)
+
+    --计算子弹朝向
+    local towards = calTurretBulletTowards(bulletCreatePosition, turretData.bulletSpeed, targetData.base)
+
+    --设置炮塔朝向
+    api.setUnitRotation(turretData.rotationPart,
+        api.vector.rotationBetweenVec(turretData.towardsReferenceVec, towards))
+
+    --获取子弹模板数据
+    local bulletTemplate = object.bulletTemplates[turretData.bulletTemplateIndex]
+
+    --创建开火特效
+    local effectData = turretData.fireEffectPreset
+    vfxRender.createVfx(
+        effectData.id,
+        bulletCreatePosition + api.vector.resetVectorLength(towards, effectData.localOffset.x) +
+        math.Vector3(0, effectData.localOffset.y, 0),
+        api.vector.rotationBetweenVec(effectData.towardsReferenceVec, towards),
+        effectData.zoom,
+        effectData.duration,
+        effectData.speed,
+        false
+    )
+
+    local bullet = apiExport.createBullet(
+        turretData.bulletTemplateIndex,
+        bulletCreatePosition,
+        api.vector.rotationBetweenVec(bulletTemplate.towardsReferenceVec, towards))
+
+    api.setUnitCollisionStatusWith(bullet, resource.turretCollision, false)
+    -- 延迟创建子弹逻辑
+    api.setTimeout(function()
+        ---@diagnostic disable-next-line: param-type-mismatch
+        api.setUnitLinerVelocity(bullet, api.vector.resetVectorLength(towards, turretData.bulletSpeed))
+        local collisionCallback = function(selfUnit, withUnit, position)
+            apiExport.destroyBullet(1, bullet)
+            for _, value in ipairs(object.enemyUnitArray) do
+                if value.base == withUnit then
+                    object.dealDamageToEnemyUnit(value, turretData.damageValuePerBullet)
+                end
+            end
+        end
+        -- api.registerUnitTriggerEventListener(bullet, { EVENT.SPEC_OBSTACLE_CONTACT_BEGAN }, collisionCallback)
+        ---@diagnostic disable-next-line: param-type-mismatch
+        api.extra.addUnitCollisionListener(bullet, collisionCallback)
+    end, 2)
+end
+
+
+
+function object.turretAttack(turretDataIndex)
+    local turretData = object.turretComponentData[turretDataIndex]
+    if turretData == nil then
+        return
+    end
+
+    local targetEnemy = searchEnemy(turretData.searchEnemyAngle.min, turretData.searchEnemyAngle.max)
+    if targetEnemy == nil then
+        return
+    end
+
+    if turretData.atkMethodType == 1 then
+        doTurretBulletAtk(turretData, targetEnemy)
+    end
+end
+
+-- ---搜索半径内敌方单位
+-- ---@param centerPos Vector3
+-- ---@param radius number
+-- function object.searchEnemy(centerPos, radius)
+--     local stdCenterPos = centerPos
+--     stdCenterPos.y = 0
+--     for index, value in ipairs(object.enemyUnitArray) do
+--         local stdEnemyUnitPos = api.positionOf(value.base)
+--         stdEnemyUnitPos.y = 0
+
+--         if (stdCenterPos - stdEnemyUnitPos):length() <= radius then
+--             return value
+--         end
+--     end
+-- end
+
+
+-- ---单次子弹攻击操作
+-- ---@param turretData TurretComponentData
+-- ---@param targetEnemyUnitData EnemyUnitData
+-- local function doTurretBulletAtk(turretData, targetEnemyUnitData)
+--     local bulletCreatePosition = calBulletCreatePosition(turretData, turretData.bulletCreateOffset)
+
+--     --计算子弹朝向
+--     local towards = calTurretBulletTowards(bulletCreatePosition, turretData.bulletSpeed, targetEnemyUnitData.base)
+
+--     --设置炮塔朝向
+--     api.setUnitRotation(turretData.rotationPart,
+--         api.vector.rotationBetweenVec(turretData.towardsReferenceVec, towards))
+
+--     --获取子弹模板数据
+--     local bulletTemplate = object.bulletTemplates[turretData.bulletTemplateIndex]
+
+--     --创建开火特效
+--     local effectData = turretData.fireEffectPreset
+--     vfxRender.createVfx(
+--         effectData.id,
+--         bulletCreatePosition + api.vector.resetVectorLength(towards, effectData.localOffset.x) +
+--         math.Vector3(0, effectData.localOffset.y, 0),
+--         api.vector.rotationBetweenVec(effectData.towardsReferenceVec, towards),
+--         effectData.zoom,
+--         effectData.duration,
+--         effectData.speed,
+--         false
+--     )
+--     local bullet = nil
+--     -- 子弹模型创建
+--     api.setTimeout(function()
+--         bullet = apiExport.createBullet(
+--             turretData.bulletTemplateIndex,
+--             bulletCreatePosition,
+--             api.vector.rotationBetweenVec(bulletTemplate.towardsReferenceVec, towards))
+--     end, 1)
+
+
+--     -- 延迟创建子弹逻辑
+--     api.setTimeout(function()
+--         ---@diagnostic disable-next-line: param-type-mismatch
+--         api.setUnitLinerVelocity(bullet, api.vector.resetVectorLength(towards, turretData.bulletSpeed))
+--         local collisionCallback = function(selfUnit, withUnit, position)
+--             apiExport.destroyBullet(1, bullet)
+--             -- apiExport.createVfx(4136, position)
+--             for index, value in ipairs(object.enemyUnitArray) do
+--                 if value.base == withUnit then
+--                     object.dealDamageToEnemyUnit(value, turretData.damageValuePerBullet)
+--                 end
+--             end
+--         end
+--         -- api.registerUnitTriggerEventListener(bullet, { EVENT.SPEC_OBSTACLE_CONTACT_BEGAN }, collisionCallback)
+--         ---@diagnostic disable-next-line: param-type-mismatch
+--         api.extra.addUnitCollisionListener(bullet, collisionCallback)
+--     end, 2)
+-- end
+
+
+-- ---单次激光攻击操作
+-- ---@param turretData TurretComponentData
+-- ---@param targetEnemyUnitData EnemyUnitData
+-- local function doTurretLaserAtk(turretData, targetEnemyUnitData)
+--     --炮塔朝向
+--     if turretData.rotationPart ~= nil then
+--         local bulletCreatePosition = calBulletCreatePosition(turretData, turretData.bulletCreateOffset)
+--         --计算炮塔朝向
+--         local towards = calTurretBulletTowards(bulletCreatePosition, turretData.bulletSpeed, targetEnemyUnitData.base)
+--         api.setUnitRotation(turretData.rotationPart,
+--             api.vector.rotationBetweenVec(turretData.towardsReferenceVec, towards))
+--     end
+
+--     ---@diagnostic disable-next-line: param-type-mismatch
+--     bridgeLib.createLinkedVfx(nil, turretData.laserSocket, nil, targetEnemyUnitData.base, nil, 3)
+--     object.dealDamageToEnemyUnit(targetEnemyUnitData, turretData.damageValuePerBullet)
+-- end
+
+
+-- ---comment
+-- ---@param turretComponentDataIndex integer
+-- ---@param targetEnemyUnitData EnemyUnitData
+-- function object.turretAtk(turretComponentDataIndex, targetEnemyUnitData)
+--     local turretData = object.turretComponentData[turretComponentDataIndex]
+
+--     if turretData.atkMethodType == 1 then
+--         doTurretBulletAtk(turretData, targetEnemyUnitData)
+--     elseif turretData.atkMethodType == 2 then
+--         local count = 0
+--         local function delayCallback()
+--             if count >= turretData.consecutiveShotCount or targetEnemyUnitData.isDestroyed then
+--                 return
+--             end
+--             doTurretBulletAtk(turretData, targetEnemyUnitData)
+--             count = count + 1
+--             api.setTimeout(delayCallback, 7)
+--         end
+--         delayCallback()
+--     else
+--         doTurretLaserAtk(turretData, targetEnemyUnitData)
+--     end
+-- end
+
+-- function object.activeTurretAutoAtk(turretComponentDataIndex)
+--     local turretData = object.turretComponentData[turretComponentDataIndex]
+--     local function atkIntervalCallback()
+--         print("atk callback")
+--         local searchEnemyAngle = turretData.searchEnemyAngle
+
+--         local stdAngleMax = (searchEnemyAngle.max - searchEnemyAngle.min) % 360
+
+--         for index, value in ipairs(object.enemyUnitArray) do
+--             local enemyAngle = math.ceil(api.vector.angleWithX(api.positionOf(value.base)))
+
+--             if (enemyAngle - searchEnemyAngle.min) % 360 <= stdAngleMax then
+--                 print("atk")
+--                 object.turretAtk(turretComponentDataIndex, value)
+--                 break
+--             end
+--         end
+
+--         api.setTimeout(atkIntervalCallback, turretData.atkCoolDownFrame)
+--     end
+--     atkIntervalCallback()
+-- end
+
+---激活防御塔
+function object.enableTurret(turretDataIndex)
+    object.turretComponentData[turretDataIndex].enabled = true
+    logger.debug("active turret: " .. turretDataIndex)
 end
 
 -- test
@@ -914,6 +1254,15 @@ function scene.gameStartHexRunMotor()
     end
 end
 
+function scene.gameStartActiveTurret()
+    for iterator = 2, object.calHexArrayIndexMaxByLayer(object.data.layer) do
+        if not (object.turretComponentData[iterator] == nil) then
+            object.enableTurret(iterator)
+        end
+    end
+    logger.info("game start turret active")
+end
+
 function scene.generateEnemyUnit()
     logger.debug("start enemy unit generate")
     local minEnemyUnitTemplateIndex = object.getEnemyTemplateMinIndexByLevel()
@@ -962,7 +1311,7 @@ function scene.generateEnemyUnit()
 
     -- 创建初始特效
     api.setTimeout(function()
-        apiExport.createVfx(3218, initialPos, math.Quaternion(0, 0, 0), 3.0, 3.0, 1.0, false)
+        vfxRender.createVfx(4191, initialPos, math.Quaternion(0, 0, 0), 3.0, 3.0, 1.0, false)
         logger.debug("enemy unit initial vfx created")
     end, 1)
 
@@ -1030,13 +1379,18 @@ function scene.initEnemyUnitGenerator()
         -- debug
         -- api.setTimeout(delayCallback, 2)
     end
-    api.setTimeout(delayCallback, 15 * constant.LOGIC_FPS)
+    api.setTimeout(delayCallback, 20 * constant.LOGIC_FPS)
+end
+
+function scene.init()
+    scene.gameStartActiveTurret()
+    -- 开启炮塔自动攻击
+    api.setTimeout(object.enableTurretAutoAtk, 15 * constant.LOGIC_FPS)
 end
 
 -- END==========================================================================
 
 return {
-    setVfxRenderingStatus = setVfxRenderingStatus,
     setComponentCacheCreateStatus = setComponentCacheCreateStatus,
     camera = camera,
     frame = frame,

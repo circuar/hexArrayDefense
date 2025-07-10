@@ -105,6 +105,7 @@ end
 ---添加直线运动
 ---@param unit Unit 单位
 ---@param vec Vector3 速度向量
+---@param time number 持续时间
 ---@param localAxis boolean 是否局部空间
 function api.addLinearMotor(unit, vec, time, localAxis)
     unit.add_linear_motor(vec, time, localAxis)
@@ -313,6 +314,21 @@ end
 ---@param status boolean
 function api.setUINodeVisibleStatus(player, uiNode, status)
     player.set_node_visible(uiNode, status)
+end
+
+---设置单位是否可见
+---@param unit Unit
+---@param status boolean
+function api.setUnitVisible(unit, status)
+    unit.set_model_visible(status)
+end
+
+---设置界面节点文本
+---@param player Role
+---@param uiNode ELabel
+---@param text string
+function api.setUILabelText(player, uiNode, text)
+    player.set_label_text(uiNode, text)
 end
 
 -- EXTRA =======================================================================

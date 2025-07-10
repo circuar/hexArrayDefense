@@ -124,8 +124,10 @@ local function loadGame()
             --护盾值
             defense = api.fetchArchiveData(Player, Enums.ArchiveType.Int, 1013),
 
-            --总经验值
+            --经验值
             totalExp = api.fetchArchiveData(Player, Enums.ArchiveType.Int, 1014),
+
+            
 
             --游戏统计数据
             gameStats = {

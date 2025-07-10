@@ -4,20 +4,22 @@ local bridgeLib = {
 
 }
 
----创建连接特效
----@param vfxKey integer
+---创建激光特效
 ---@param start Unit
----@param startSocket Enums.ModelSocket
 ---@param with Unit
----@param withSocket Enums.ModelSocket
 ---@param duration Fixed
-function bridgeLib.createLinkedVfx(vfxKey, start, startSocket, with, withSocket, duration)
+function bridgeLib.createLaserVfx(start, with, duration)
+    api.sendGlobalCustomEvent(constant.BRIDGE_CREATE_LASER_EFFECT_EVENT, {
+        start = start,
+        with = with,
+        duration = duration,
+    })
+end
+
+function bridgeLib.createLinkedVfx(start, with)
     api.sendGlobalCustomEvent(constant.BRIDGE_CREATE_LINKED_EFFECT_EVENT, {
         start = start,
-        startSocket = startSocket,
-        with = with,
-        withSocket = withSocket,
-        duration = duration,
+        with = with
     })
 end
 

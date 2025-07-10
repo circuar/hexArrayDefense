@@ -324,6 +324,8 @@ function math.Quaternion(pitch, yaw, roll) end
 
 ---@alias Archive integer 自定义存档
 
+---@alias CameraShakeType integer 屏幕震动类型
+
 ---@alias CampID integer 阵营ID
 
 ---@alias CharacterKey LifeEntityKey 角色编号
@@ -356,18 +358,28 @@ function math.Quaternion(pitch, yaw, roll) end
 
 ---@alias EquipmentSlot integer 物品槽位
 
+---@alias ImageKey integer 图片编号
+
 ---@alias InteractBtnID integer 交互按钮编号
+
+---@alias InteractBtnType integer 交互按钮类型
 
 ---@class JointAssistant: JointAssistantComp, Unit
 JointAssistant = {}
+
+---@alias LevelKey string 关卡编号
 
 ---@alias LifeEntityKey UnitKey 生命体编号
 
 ---@alias ModifierKey integer 效果编号
 
+---@alias MontageKey string 剧情动画编号
+
 ---@alias ObstacleID UnitID 组件ID
 
 ---@alias ObstacleKey UnitKey 组件编号
+
+---@alias PaintArea integer 染色区域
 
 ---@alias PathID UnitID 路径ID
 
@@ -491,6 +503,14 @@ Enums.CampRelationType = {
 	ENEMY = 1,  ---敌方
 	FRIEND = 2,  ---友方
 	NEUTRAL = 4,  ---中立
+}
+
+---@enum Enums.ColorPaintAreaType 染色区域
+Enums.ColorPaintAreaType = {
+	AREA_1 = 1,  ---染色区域1
+	AREA_2 = 2,  ---染色区域2
+	AREA_3 = 3,  ---染色区域3
+	AREA_4 = 4,  ---染色区域4
 }
 
 ---@enum Enums.EquipmentSlotType 物品槽位类型
@@ -645,6 +665,7 @@ Enums.ValueType = {
 	CameraBindMode = 'CameraBindMode',  ---相机绑定模式
 	CameraProjectionType = 'CameraProjectionType',  ---相机投影类型
 	CameraPropertyType = 'CameraPropertyType',  ---相机属性预设
+	CameraShakeType = 'CameraShakeType',  ---屏幕震动类型
 	Camp = 'Camp',  ---阵营
 	CampID = 'CampID',  ---阵营ID
 	CampRelationType = 'CampRelationType',  ---阵营关系类型
@@ -679,11 +700,14 @@ Enums.ValueType = {
 	FashionKey = 'FashionKey',  ---时装编号
 	Fixed = 'Fixed',  ---定点数
 	GameResult = 'GameResult',  ---游戏结局
+	ImageKey = 'ImageKey',  ---图片编号
 	Int = 'Int',  ---整型
 	InteractBtnID = 'InteractBtnID',  ---交互按钮编号
+	InteractBtnType = 'InteractBtnType',  ---交互按钮类型
 	JointAssistant = 'JointAssistant',  ---关节
 	JointAssistantKey = 'JointAssistantKey',  ---关节预设编号
 	JointAssistantType = 'JointAssistantType',  ---关节类型
+	LevelKey = 'LevelKey',  ---关卡编号
 	LifeEntity = 'LifeEntity',  ---生命体
 	LifeEntityKey = 'LifeEntityKey',  ---生命体编号
 	ListAIBasicCommand = 'ListAIBasicCommand',  ---AI基础命令类型列表
@@ -702,6 +726,7 @@ Enums.ValueType = {
 	ListCameraBindMode = 'ListCameraBindMode',  ---相机绑定模式列表
 	ListCameraProjectionType = 'ListCameraProjectionType',  ---相机投影类型列表
 	ListCameraPropertyType = 'ListCameraPropertyType',  ---相机属性预设列表
+	ListCameraShakeType = 'ListCameraShakeType',  ---屏幕震动类型列表
 	ListCamp = 'ListCamp',  ---阵营列表
 	ListCampID = 'ListCampID',  ---阵营ID列表
 	ListCampRelationType = 'ListCampRelationType',  ---阵营关系类型列表
@@ -736,20 +761,25 @@ Enums.ValueType = {
 	ListFashionKey = 'ListFashionKey',  ---时装编号列表
 	ListFixed = 'ListFixed',  ---定点数列表
 	ListGameResult = 'ListGameResult',  ---游戏结局列表
+	ListImageKey = 'ListImageKey',  ---图片编号列表
 	ListInt = 'ListInt',  ---整型列表
 	ListInteractBtnID = 'ListInteractBtnID',  ---交互按钮编号列表
+	ListInteractBtnType = 'ListInteractBtnType',  ---交互按钮类型列表
 	ListJointAssistant = 'ListJointAssistant',  ---关节列表
 	ListJointAssistantKey = 'ListJointAssistantKey',  ---关节预设编号列表
 	ListJointAssistantType = 'ListJointAssistantType',  ---关节类型列表
+	ListLevelKey = 'ListLevelKey',  ---关卡编号列表
 	ListLifeEntity = 'ListLifeEntity',  ---生命体列表
 	ListLifeEntityKey = 'ListLifeEntityKey',  ---生命体编号列表
 	ListModelSocket = 'ListModelSocket',  ---部位列表
 	ListModifier = 'ListModifier',  ---效果列表
 	ListModifierKey = 'ListModifierKey',  ---效果编号列表
+	ListMontageKey = 'ListMontageKey',  ---剧情动画编号列表
 	ListMoveMode = 'ListMoveMode',  ---AI移动模式列表
 	ListObstacle = 'ListObstacle',  ---组件列表
 	ListObstacleID = 'ListObstacleID',  ---组件ID列表
 	ListObstacleKey = 'ListObstacleKey',  ---组件编号列表
+	ListPaintArea = 'ListPaintArea',  ---染色区域列表
 	ListPathID = 'ListPathID',  ---路径ID列表
 	ListPathPointID = 'ListPathPointID',  ---路点ID列表
 	ListPatrolType = 'ListPatrolType',  ---AI巡逻类型列表
@@ -785,10 +815,12 @@ Enums.ValueType = {
 	ModelSocket = 'ModelSocket',  ---部位
 	Modifier = 'Modifier',  ---效果
 	ModifierKey = 'ModifierKey',  ---效果编号
+	MontageKey = 'MontageKey',  ---剧情动画编号
 	MoveMode = 'MoveMode',  ---AI移动模式
 	Obstacle = 'Obstacle',  ---组件
 	ObstacleID = 'ObstacleID',  ---组件ID
 	ObstacleKey = 'ObstacleKey',  ---组件编号
+	PaintArea = 'PaintArea',  ---染色区域
 	PathID = 'PathID',  ---路径ID
 	PathPointID = 'PathPointID',  ---路点ID
 	PatrolType = 'PatrolType',  ---AI巡逻类型
@@ -867,6 +899,21 @@ function GlobalAPI.mute_sfx_sound(_sfx_id) end
 ---@param _duration Fixed 持续时间
 function GlobalAPI.set_direct_light(_param_dict, _duration) end
 
+---改变色彩滤镜
+---@param _hue Fixed 变换时长
+---@param _brightness Fixed 色相
+---@param _saturation Fixed 明度
+---@param _contrast Fixed 饱和度
+---@param _amount Fixed 对比度
+---@param _mid_tones Fixed 整体偏色程度
+---@param _mid_tones_power Color 中灰偏色
+---@param _shadows Fixed 中灰偏色程度
+---@param _shadows_power Color 暗部偏色
+---@param _highlight Fixed 暗部偏色程度
+---@param _highlight_power Color 亮部偏色
+---@param _duration Fixed 亮部偏色程度
+function GlobalAPI.set_render_color(_hue, _brightness, _saturation, _contrast, _amount, _mid_tones, _mid_tones_power, _shadows, _shadows_power, _highlight, _highlight_power, _duration) end
+
 ---设置特效旋转
 ---@param _sfx_id SfxID 特效ID
 ---@param _orientation Quaternion 旋转
@@ -897,6 +944,11 @@ function GlobalAPI.set_sfx_visible(_sfx_id, _visible) end
 ---@param _change_type Enums.SkyBoxGradualType 切换方式
 ---@param _duration Fixed 持续时间
 function GlobalAPI.set_skybox_texture(_texture_key, _change_type, _duration) end
+
+---改变天空雾效
+---@param _param_dict table 切换参数
+---@param _duration Fixed 变换时长
+function GlobalAPI.set_skyfog(_param_dict, _duration) end
 
 ---跑马灯信息
 ---@param _content string? 字符串
@@ -1638,6 +1690,10 @@ function Equipment.set_desc(_desc) end
 ---@param _droppable boolean 能否丢弃
 function Equipment.set_droppable(_droppable) end
 
+---设置物品的图标
+---@param _icon_key ImageKey 图标
+function Equipment.set_icon(_icon_key) end
+
 ---设置物品最大堆叠数
 ---@param _num integer 堆叠数
 function Equipment.set_max_stack_num(_num) end
@@ -1749,6 +1805,13 @@ function GameAPI.ability_prefab_has_kv(_ability_key, _prop) end
 ---@param _index integer 路点索引
 ---@param _point_id PathPointID 路点
 function GameAPI.add_pathpoint(_path_id, _index, _point_id) end
+
+---创建一个固定风场单位
+---@param _pos Vector3 位置
+---@param _wind_type Enums.WindFieldShapeType 形状
+---@param _wind_range Fixed 范围
+---@param _duration Fixed 持续时间
+function GameAPI.create_constant_wind_field(_pos, _wind_type, _wind_range, _duration) end
 
 ---创建一个生物
 ---@param _u_key CreatureKey 生物编号
@@ -1981,6 +2044,18 @@ function GameAPI.get_customtriggerspaces_by_key(_key) end
 ---@return integer 日
 function GameAPI.get_day(_timestamp) end
 
+---获取环境时间
+---@return Fixed 当前环境时刻
+function GameAPI.get_env_time() end
+
+---获取环境时间流逝速率
+---@return Fixed 流逝速率
+function GameAPI.get_env_time_ratio() end
+
+---获取环境时间是否自动流逝
+---@return boolean 是否自动流逝
+function GameAPI.get_env_time_running_enabled() end
+
 ---获取付费商品信息列表
 ---@return GoodsInfo[] goods_list 商品信息列表
 ---
@@ -2079,10 +2154,30 @@ function GameAPI.get_pathpoint_by_index(_path_id, _index) end
 ---@return Role 玩家
 function GameAPI.get_role(_role_id) end
 
+---获取玩家亲密度
+---@param _role_1 Role 玩家1
+---@param _role_2 Role 玩家2
+---@return integer 亲密度
+function GameAPI.get_role_friendship_value(_role_1, _role_2) end
+
 ---获取时间戳转化后的秒数
 ---@param _timestamp Timestamp 时间戳
 ---@return integer 秒
 function GameAPI.get_second(_timestamp) end
+
+---获取当前时间戳
+---@return Timestamp 时间戳
+function GameAPI.get_timestamp() end
+
+---获取时间戳
+---@param _year integer 年
+---@param _month integer 月
+---@param _day integer 日
+---@param _hour integer 时
+---@param _minute integer 分
+---@param _second integer 秒
+---@return Timestamp 时间戳
+function GameAPI.get_timestamp_by_time(_year, _month, _day, _hour, _minute, _second) end
 
 ---获取时间戳秒差
 ---@param _timestamp_1 Timestamp 时间戳1
@@ -2119,6 +2214,10 @@ function GameAPI.get_year(_timestamp) end
 ---@param _var_name string 变量名称
 ---@return boolean 是否含有全局变量
 function GameAPI.has_global_kv(_var_name) end
+
+---跳转关卡
+---@param _level_key LevelKey 关卡编号
+function GameAPI.load_level(_level_key) end
 
 ---获取效果预设描述
 ---@param _modifier_key ModifierKey 效果编号
@@ -2203,6 +2302,20 @@ function GameAPI.raycast_unit(_start_pos, _end_pos, _include_unit_types, _raycas
 ---@param _path_id PathID 路径
 ---@param _index integer 路点索引
 function GameAPI.remove_pathpoint(_path_id, _index) end
+
+---设置环境时间
+---@param _target_time Fixed 目标时刻
+---@param _duration Fixed 过渡时间
+---@param _direction boolean 是否正向
+function GameAPI.set_env_time(_target_time, _duration, _direction) end
+
+---设置环境时间流逝速度
+---@param _time_ratio Fixed 流逝速度
+function GameAPI.set_env_time_ratio(_time_ratio) end
+
+---设置环境时间是否自动流逝
+---@param _enabled boolean 是否自动流逝
+function GameAPI.set_env_time_running_enabled(_enabled) end
 
 ---设置生命体存活场景边界大小
 ---@param _x Fixed 矩形边界长度
@@ -2371,6 +2484,10 @@ function LifeComp.get_life() end
 ---获取最大命数
 ---@return integer 当前命数
 function LifeComp.get_life_max() end
+
+---是否处于死亡状态
+---@return boolean 处于死亡
+function LifeComp.is_die_status() end
 
 ---是否无限复活
 ---@return boolean 是否无限复活
@@ -2974,6 +3091,26 @@ function Role.add_score(_add_score) end
 ---@param _num integer 数量
 function Role.consume_commodity(_commodity_id, _num) end
 
+---关闭单位菲尼尔效果
+---@param _unit Unit 单位
+function Role.disable_unit_fresnel(_unit) end
+
+---关闭单位蒙版
+---@param _unit Unit 单位
+function Role.disable_unit_mask(_unit) end
+
+---关闭单位描边
+---@param _unit Unit 单位
+function Role.disable_unit_outline(_unit) end
+
+---玩家进入观战
+---@param _camp_limit boolean? 是否限制阵营观战
+---@param _exit_visible boolean? 是否支持手动退出
+function Role.enter_watch_mode(_camp_limit, _exit_visible) end
+
+---玩家退出观战
+function Role.exit_watch_mode() end
+
 ---玩家游戏失败并显示失败界面
 function Role.game_lose_and_show_result_panel() end
 
@@ -3020,6 +3157,14 @@ function Role.get_name() end
 ---@return RoleID 玩家ID
 function Role.get_roleid() end
 
+---获取玩家积分
+---@return integer 积分
+function Role.get_score() end
+
+---获取语音音量
+---@return Fixed 相机旋转
+function Role.get_voice_volume() end
+
 ---玩家是否拥有道具
 ---@param _commodity_id UgcCommodity 道具
 ---@return boolean 是否拥有道具
@@ -3042,9 +3187,25 @@ function Role.is_gallery_vip() end
 ---@return boolean 玩家是否失败
 function Role.is_lost() end
 
+---是否收藏本地图
+---@return boolean 是否收藏
+function Role.is_map_favorited() end
+
+---是否点赞本地图
+---@return boolean 是否点赞
+function Role.is_map_liked() end
+
 ---玩家是否在线
 ---@return boolean 是否在线
 function Role.is_online() end
+
+---是否是派对手册进阶会员
+---@return boolean 是否是派对手册进阶会员
+function Role.is_pass_premium_vip() end
+
+---玩家进入观战
+---@return boolean 是否处于观战模式
+function Role.is_watch_mode() end
 
 ---玩家是否胜利
 ---@return boolean 玩家是否胜利
@@ -3055,6 +3216,21 @@ function Role.lose() end
 
 ---暂停玩家相机运动
 function Role.pause_camera_motor() end
+
+---播放广告
+---@param _success_event string 成功事件
+---@param _fail_event string 失败事件
+---@param _ad_tag string? 广告标签
+---@param _success_data table? 成功附带参数
+---@param _fail_data table? 失败附带参数
+function Role.play_advertisement_with_event(_success_event, _fail_event, _ad_tag, _success_data, _fail_data) end
+
+---播放指定剧情动画
+---@param _montage_key MontageKey 剧情动画编号
+---@param _start_time Fixed 起始时间
+---@param _play_to_end boolean 是否播完
+---@param _play_time Fixed 播放时长
+function Role.play_montage(_montage_key, _start_time, _play_to_end, _play_time) end
 
 ---播放屏幕特效
 ---@param _sfx_key SfxKey 特效编号
@@ -3099,6 +3275,16 @@ function Role.set_blind_corner(_enable, _strength, _color) end
 ---@param _key EButton UI按钮节点
 ---@param _font_size Fixed 字号
 function Role.set_button_font_size(_key, _font_size) end
+
+---设置UI按钮节点常态图片
+---@param _button EButton UI按钮节点
+---@param _image_id ImageKey 图片
+function Role.set_button_normal_image(_button, _image_id) end
+
+---设置UI按钮节点按下图片
+---@param _button EButton UI按钮节点
+---@param _image_id ImageKey 图片
+function Role.set_button_pressed_image(_button, _image_id) end
 
 ---设置UI按钮节点文本
 ---@param _button EButton UI按钮节点
@@ -3166,6 +3352,12 @@ function Role.set_gyroscope_sync_enabled(_enabled) end
 ---@param _image_color Color 颜色
 ---@param _transition_time Fixed 变化时间
 function Role.set_image_color(_image, _image_color, _transition_time) end
+
+---设置UI图片节点图片
+---@param _image EImage UI图片节点
+---@param _image_key ImageKey 图片
+---@param _reset_size boolean? 是否重置大小
+function Role.set_image_texture_by_key_with_auto_resize(_image, _image_key, _reset_size) end
 
 ---设置UI图片节点图片
 ---@param _image EImage UI图片节点
@@ -3291,24 +3483,88 @@ function Role.set_score(_score) end
 ---@param _opacity Fixed 不透明度
 function Role.set_ui_opacity(_node, _opacity) end
 
+---设置单位菲尼尔效果
+---@param _unit Unit 单位
+---@param _fresnel_scale Fixed 菲尼尔系数
+---@param _color Color 颜色
+---@param _intensity integer 强度
+function Role.set_unit_fresnel(_unit, _fresnel_scale, _color, _intensity) end
+
+---设置单位菲尼尔效果
+---@param _unit Unit 单位
+---@param _fresnel_scale Fixed 菲尼尔系数
+---@param _color Color 颜色
+---@param _intensity integer 强度
+---@param _duration Fixed 用时
+function Role.set_unit_fresnel_gradual(_unit, _fresnel_scale, _color, _intensity, _duration) end
+
+---设置单位蒙版
+---@param _unit Unit 单位
+---@param _color Color 颜色
+function Role.set_unit_mask(_unit, _color) end
+
+---设置单位描边
+---@param _unit Unit 单位
+---@param _width integer 粗细
+---@param _color Color 颜色
+function Role.set_unit_outline(_unit, _width, _color) end
+
+---设置单位穿透显示
+---@param _unit Unit 单位
+---@param _enabled boolean 是否穿透显示
+function Role.set_unit_see_through_enabled(_unit, _enabled) end
+
 ---设置单位对玩家可见性
 ---@param _unit Unit 单位
 ---@param _is_visible boolean 是否显示
 function Role.set_unit_visible(_unit, _is_visible) end
+
+---设置是否开启语音音量同步
+---@param _enabled boolean 是否同步
+function Role.set_voice_volume_sync_enabled(_enabled) end
+
+---设置玩家屏幕震动
+---@param _shake_type CameraShakeType 震动方向
+---@param _shake_max_amplitude Fixed 震幅
+---@param _shake_time Fixed 震动时间
+---@param _shake_source Unit 震源
+---@param _shake_frequency Fixed 频率
+---@param _shake_time_decay Fixed 时间衰减
+---@param _shake_effect_scope Fixed 生效范围
+---@param _shake_undamped_scope Fixed 不衰减范围
+---@param _shake_distance_decay Fixed 距离衰减
+function Role.shake_camera(_shake_type, _shake_max_amplitude, _shake_time, _shake_source, _shake_frequency, _shake_time_decay, _shake_effect_scope, _shake_undamped_scope, _shake_distance_decay) end
 
 ---玩家显示指定商品购买界面
 ---@param _raw_goods_id UgcGoods 商品
 ---@param _show_time Fixed 显示时间
 function Role.show_goods_purchase_panel(_raw_goods_id, _show_time) end
 
+---显示点赞界面
+function Role.show_like_panel() end
+
 ---玩家显示飘字信息
 ---@param _content string 字符串
 ---@param _duration Fixed? 时长
 function Role.show_tips(_content, _duration) end
 
+---显示玩家决战技选择界面
+---@param _keep_time integer 时间
+function Role.show_ultimate_ability_panel(_keep_time) end
+
 ---跳过剧情动画
 ---@param _has_black_screen boolean 是否有跳过黑幕
 function Role.skip_current_montage(_has_black_screen) end
+
+---发起进入关卡投票
+---@param _level_key LevelKey 关卡编号
+function Role.start_level_vote(_level_key) end
+
+---开始手机震动
+---@param _vibrate_type integer 震动模式
+---@param _vibrate_count integer 震动次数
+---@param _vibrate_interval Fixed 震动间隔
+function Role.start_vibration(_vibrate_type, _vibrate_count, _vibrate_interval) end
 
 ---停止玩家相机运动
 function Role.stop_camera_motor() end
@@ -3558,6 +3814,10 @@ function Unit.set_linear_motor_velocity(_index, _vel, _is_local) end
 ---@param _vel Vector3 线速度
 function Unit.set_linear_velocity(_vel) end
 
+---开关镜面反射
+---@param _enable boolean 是否启用
+function Unit.set_mirror_reflect_enabled(_enable) end
+
 ---设置单位模型是否可见
 ---@param _v boolean 是否可见
 function Unit.set_model_visible(_v) end
@@ -3565,6 +3825,11 @@ function Unit.set_model_visible(_v) end
 ---设置单位旋转
 ---@param _rot Quaternion 旋转
 function Unit.set_orientation(_rot) end
+
+---改变组件颜色
+---@param _paint_area PaintArea 染色区域
+---@param _color Color 颜色
+function Unit.set_paint_area_color(_paint_area, _color) end
 
 ---设置单位物理是否生效
 ---@param _is_active boolean 是否生效
@@ -3587,10 +3852,26 @@ function Unit.stop_sound(_lres_id) end
 ---@class UnitInteractVolumeComp
 UnitInteractVolumeComp = {}
 
----设置单位互动按钮名称
+---获取单位互动按钮ID
 ---@param _interact_index integer 互动索引
----@param _name string 互动按钮名称
-function UnitInteractVolumeComp.set_interact_button_text_by_index(_interact_index, _name) end
+---@param _interact_btn_type InteractBtnType 互动按钮类型
+---@return InteractBtnID 互动按钮ID
+function UnitInteractVolumeComp.get_interact_id(_interact_index, _interact_btn_type) end
+
+---设置单位互动按钮图标
+---@param _interact_id InteractBtnID 互动按钮ID
+---@param _icon ImageKey 互动按钮图标
+function UnitInteractVolumeComp.set_interact_button_icon(_interact_id, _icon) end
+
+---设置单位互动按钮文本
+---@param _interact_id InteractBtnID 互动按钮ID
+---@param _text string 互动按钮文本
+function UnitInteractVolumeComp.set_interact_button_text(_interact_id, _text) end
+
+---设置单位互动按钮文本
+---@param _interact_index integer 互动索引
+---@param _text string 互动按钮文本
+function UnitInteractVolumeComp.set_interact_button_text_by_index(_interact_index, _text) end
 
 ---设置单位互动是否启用
 ---@param _enable boolean 是否启用
@@ -3818,6 +4099,18 @@ EVENT.MODIFIER_REOBTAIN = "MODIFIER_REOBTAIN"
 ---事件回调参数 modifier Modifier 触发效果
 ---事件回调参数 unit Unit 效果拥有者
 EVENT.MODIFIER_STACK_COUNT_CHANGE = "MODIFIER_STACK_COUNT_CHANGE"
+
+---剧情动画开始播放事件
+---事件主体 Default 多类型
+---事件回调参数 play_role Role 触发角色
+---事件回调参数 montage_id MontageKey 触发的剧情动画
+EVENT.ON_MONTAGE_BEGIN = "ON_MONTAGE_BEGIN"
+
+---剧情动画结束播放事件
+---事件主体 Default 多类型
+---事件回调参数 play_role Role 触发角色
+---事件回调参数 montage_id MontageKey 触发的剧情动画
+EVENT.ON_MONTAGE_END = "ON_MONTAGE_END"
 
 ---玩家拍照
 ---事件主体 Global 全局触发器

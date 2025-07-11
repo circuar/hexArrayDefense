@@ -1152,15 +1152,15 @@ function object.levelUpHandler()
             end, 15 * delay)
             delay = delay + 1
         end
-
-        --恢复护盾和生命值
-        object.data.defense = object.data.maxDefense
-        object.data.health = math.min(
-            object.data.health + math.tointeger(object.data.maxHealth * 0.2),
-            object.data.maxHealth
-        )
-        hud.updateSelfInfo()
     end
+
+    --恢复护盾和生命值
+    object.data.defense = object.data.maxDefense
+    object.data.health = math.min(
+        object.data.health + math.tointeger(object.data.maxHealth * 0.2),
+        object.data.maxHealth
+    )
+    hud.updateSelfInfo()
 end
 
 function object.addExp(value)
@@ -1680,7 +1680,7 @@ function scene.generateEnemyUnit()
 
     -- 创建初始特效
     api.setTimeout(function()
-        vfxRender.createVfx(4191, initialPos, math.Quaternion(0, 0, 0), 3.0, 3.0, 1.0, false)
+        vfxRender.createVfx(4191, initialPos, math.Quaternion(0, 0, 0), 3.0, 6.0, 1.0, false)
         logger.debug("enemy unit initial vfx created")
     end, 1)
 

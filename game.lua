@@ -1155,7 +1155,10 @@ function object.levelUpHandler()
 
         --恢复护盾和生命值
         object.data.defense = object.data.maxDefense
-        object.data.health = object.data.health + math.tointeger(object.data.maxHealth * 0.2)
+        object.data.health = math.min(
+            object.data.health + math.tointeger(object.data.maxHealth * 0.2),
+            object.data.maxHealth
+        )
         hud.updateSelfInfo()
     end
 end

@@ -1,18 +1,22 @@
 ---@diagnostic disable: need-check-nil
-local constant  = require("constant")
-local api       = require("api")
-local logger    = require("api").logger
-local manager   = require("manager")
-local resource  = require("resource")
-local vfxRender = require("vfxRender")
-local bridgeLib = require("bridgeLib")
+local constant    = require("constant")
+local api         = require("api")
+local logger      = require("api").logger
+local manager     = require("manager")
+local resource    = require("resource")
+local vfxRender   = require("vfxRender")
+local bridgeLib   = require("bridgeLib")
 -- local UINodes  = require("Data.UINodes")
 
-local object    = {}
-local frame     = {}
-local camera    = {}
-local hud       = {}
-local scene     = {}
+local object      = {}
+local frame       = {}
+local camera      = {}
+local hud         = {}
+local scene       = {}
+
+-- 此状态布尔值在两个伤害函数调用时会进行校验
+-- 如果为false，则直接跳过伤害计算
+local gameRunning = false
 
 
 local originCreateBullet  = function(bulletTemplateIndex, createPosition, initialRotation)
@@ -206,6 +210,8 @@ end
 
 ---初始化游戏对象
 function object.init(archiveData)
+    gameRunning = true
+
     if archiveData ~= nil then
         object.data = archiveData
     end
@@ -385,6 +391,10 @@ end
 ---@param enemyUnitData EnemyUnitData
 ---@param damageValue integer
 function object.dealDamageToEnemyUnit(enemyUnitData, damageValue)
+    if not gameRunning then
+        return
+    end
+
     local multipleDamage = damageValue * object.data.damageMultiple
 
     object.data.gameStats.totalDamage = object.data.gameStats.totalDamage + multipleDamage
@@ -758,10 +768,16 @@ end
 
 function object.gameOver()
     logger.info("game over")
+    gameRunning = false
     hud.showGameOverUI()
 end
 
 function object.dealDamageToMainTurret(damageValue)
+    if not gameRunning then
+        return
+    end
+
+
     object.data.gameStats.totalDefenseAtk = object.data.gameStats.totalDefenseAtk + damageValue
 
 

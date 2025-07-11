@@ -127,7 +127,7 @@ local bulletTemplates = {
     [2] = {
         presetId = 1073832018,
         towardsReferenceVec = math.Vector3(0, 1, 0),
-        defaultZoom = math.Vector3(0.2, 4, 0.2),
+        defaultZoom = math.Vector3(0.4, 4, 0.4),
         destroyEffectPreset = {
             id = 2540,
             rotation = math.Quaternion(0, 0, 0),
@@ -166,7 +166,7 @@ local bulletTemplates = {
         towardsReferenceVec = math.Vector3(0, 1, 0),
         defaultZoom = math.Vector3(0.2, 5, 0.2),
         destroyEffectPreset = {
-            id = 2286,
+            id = 829,
             rotation = math.Quaternion(0, 0, 0),
             zoom = 3.0,
             duration = 5.0,
@@ -178,7 +178,7 @@ local bulletTemplates = {
         towardsReferenceVec = math.Vector3(0, 1, 0),
         defaultZoom = math.Vector3(0.2, 5, 0.2),
         destroyEffectPreset = {
-            id = 2286,
+            id = 829,
             rotation = math.Quaternion(0, 0, 0),
             zoom = 3.0,
             duration = 5.0,
@@ -454,18 +454,18 @@ local turretComponentData = {
         -- 2：连发
         -- 3：激光
         atkMethodType = 1,
-        atkCoolDownFrame = 3,
+        atkCoolDownFrame = nil,
         laserSocket = nil,
-        consecutiveShotCount = 10,
-        bulletSpeed = 100,
+        consecutiveShotCount = nil,
+        bulletSpeed = 150,
         damageValuePerBullet = 30,
         fireEffectPreset = {
-            id = 2523,
-            ---x:径向 y:竖直
-            localOffset = { x = 0, y = 0 },
+            id = 2284,
+            ---x:径向(towards向量) y:竖直（世界y轴）
+            localOffset = { x = 3, y = 0 },
             towardsReferenceVec = math.Vector3(0, 0, 1),
 
-            zoom = 1.5,
+            zoom = 2.0,
             duration = 1.0,
             speed = 1.0
         },
@@ -477,25 +477,25 @@ local turretComponentData = {
         rotationPart = api.getUnitById(2101972419),
         rotationPartBaseOffset = math.Vector3(0, 7, 0),
         towardsReferenceVec = math.Vector3(1, 0, 0),
-        bulletCreateOffset = math.Vector3(8, 0, 0),
+        bulletCreateOffset = math.Vector3(11.5, -0.25, 0),
         bulletTemplateIndex = 4,
         isMainTurret = false,
         -- 1：普通单发
         -- 2：连发
         -- 3：激光
         atkMethodType = 1,
-        atkCoolDownFrame = 30,
+        atkCoolDownFrame = nil,
         laserSocket = nil,
         consecutiveShotCount = nil,
-        bulletSpeed = 100,
+        bulletSpeed = 150,
         damageValuePerBullet = 30,
         fireEffectPreset = {
-            id = 2523,
+            id = 2284,
             ---x:径向 y:竖直
-            localOffset = { x = -3, y = 0 },
+            localOffset = { x = 3, y = 0 },
             towardsReferenceVec = math.Vector3(0, 0, 1),
 
-            zoom = 1.5,
+            zoom = 2.0,
             duration = 1.0,
             speed = 1.0
         },
@@ -507,25 +507,25 @@ local turretComponentData = {
         rotationPart = api.getUnitById(1023066084),
         rotationPartBaseOffset = math.Vector3(0, 7, 0),
         towardsReferenceVec = math.Vector3(1, 0, 0),
-        bulletCreateOffset = math.Vector3(8, 0, 0),
+        bulletCreateOffset = math.Vector3(11.5, -0.25, 0),
         bulletTemplateIndex = 4,
         isMainTurret = false,
         -- 1：普通单发
         -- 2：连发
         -- 3：激光
         atkMethodType = 1,
-        atkCoolDownFrame = 30,
+        atkCoolDownFrame = nil,
         laserSocket = nil,
         consecutiveShotCount = nil,
-        bulletSpeed = 100,
+        bulletSpeed = 150,
         damageValuePerBullet = 30,
         fireEffectPreset = {
-            id = 2523,
+            id = 2284,
             ---x:径向 y:竖直
-            localOffset = { x = -3, y = 0 },
+            localOffset = { x = 3, y = 0 },
             towardsReferenceVec = math.Vector3(0, 0, 1),
 
-            zoom = 1.5,
+            zoom = 2.0,
             duration = 1.0,
             speed = 1.0
         },
@@ -533,29 +533,29 @@ local turretComponentData = {
         enabled = false
     },
     [31] = {
-        base = api.getUnitById(1041227517),
-        rotationPart = api.getUnitById(1047567524),
+        base = api.getUnitById(1047567524),
+        rotationPart = api.getUnitById(1041227517),
         rotationPartBaseOffset = math.Vector3(0, 7, 0),
         towardsReferenceVec = math.Vector3(1, 0, 0),
-        bulletCreateOffset = math.Vector3(8, 0, 0),
+        bulletCreateOffset = math.Vector3(11.5, -0.25, 0),
         bulletTemplateIndex = 4,
         isMainTurret = false,
         -- 1：普通单发
         -- 2：连发
         -- 3：激光
         atkMethodType = 1,
-        atkCoolDownFrame = 30,
+        atkCoolDownFrame = nil,
         laserSocket = nil,
         consecutiveShotCount = nil,
-        bulletSpeed = 100,
+        bulletSpeed = 150,
         damageValuePerBullet = 30,
         fireEffectPreset = {
-            id = 2523,
+            id = 2284,
             ---x:径向 y:竖直
-            localOffset = { x = -3, y = 0 },
+            localOffset = { x = 3, y = 0 },
             towardsReferenceVec = math.Vector3(0, 0, 1),
 
-            zoom = 1.5,
+            zoom = 2.0,
             duration = 1.0,
             speed = 1.0
         },
@@ -567,25 +567,25 @@ local turretComponentData = {
         rotationPart = api.getUnitById(1583833186),
         rotationPartBaseOffset = math.Vector3(0, 7, 0),
         towardsReferenceVec = math.Vector3(1, 0, 0),
-        bulletCreateOffset = math.Vector3(8, 0, 0),
+        bulletCreateOffset = math.Vector3(11.5, -0.25, 0),
         bulletTemplateIndex = 4,
         isMainTurret = false,
         -- 1：普通单发
         -- 2：连发
         -- 3：激光
         atkMethodType = 1,
-        atkCoolDownFrame = 30,
+        atkCoolDownFrame = nil,
         laserSocket = nil,
         consecutiveShotCount = nil,
-        bulletSpeed = 100,
+        bulletSpeed = 150,
         damageValuePerBullet = 30,
         fireEffectPreset = {
-            id = 2523,
+            id = 2284,
             ---x:径向 y:竖直
-            localOffset = { x = -3, y = 0 },
+            localOffset = { x = 3, y = 0 },
             towardsReferenceVec = math.Vector3(0, 0, 1),
 
-            zoom = 1.5,
+            zoom = 2.0,
             duration = 1.0,
             speed = 1.0
         },
@@ -597,25 +597,25 @@ local turretComponentData = {
         rotationPart = api.getUnitById(2013346141),
         rotationPartBaseOffset = math.Vector3(0, 7, 0),
         towardsReferenceVec = math.Vector3(1, 0, 0),
-        bulletCreateOffset = math.Vector3(8, 0, 0),
+        bulletCreateOffset = math.Vector3(11.5, -0.25, 0),
         bulletTemplateIndex = 4,
         isMainTurret = false,
         -- 1：普通单发
         -- 2：连发
         -- 3：激光
         atkMethodType = 1,
-        atkCoolDownFrame = 30,
+        atkCoolDownFrame = nil,
         laserSocket = nil,
         consecutiveShotCount = nil,
-        bulletSpeed = 100,
+        bulletSpeed = 150,
         damageValuePerBullet = 30,
         fireEffectPreset = {
-            id = 2523,
+            id = 2284,
             ---x:径向 y:竖直
-            localOffset = { x = -3, y = 0 },
+            localOffset = { x = 3, y = 0 },
             towardsReferenceVec = math.Vector3(0, 0, 1),
 
-            zoom = 1.5,
+            zoom = 2.0,
             duration = 1.0,
             speed = 1.0
         },

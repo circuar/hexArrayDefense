@@ -295,8 +295,10 @@ end
 ---@param duration Fixed
 function api.setUIProgressBarData(player, progressBar, current, max, duration)
     -- player.set_progressbar_current(progressBarm, current)
-    player.set_progressbar_max(progressBar, max)
-    player.set_progressbar_transition(progressBar, current, duration)
+    ---@diagnostic disable-next-line: param-type-mismatch
+    player.set_progressbar_max(progressBar, math.tointeger(max))
+    ---@diagnostic disable-next-line: param-type-mismatch
+    player.set_progressbar_transition(progressBar, math.tointeger(current), duration)
 end
 
 ---设置进度条进度

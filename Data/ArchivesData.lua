@@ -51,6 +51,11 @@ return {
 		id = 1013,
 		vType = Enums.ArchiveType.Int,
 	},
+	["sv.dmmul"] = {
+		dftVal = 1.0,
+		id = 1023,
+		vType = Enums.ArchiveType.Fixed,
+	},
 	["sv.enabled"] = {
 		dftVal = false,
 		id = 1019,
@@ -71,6 +76,11 @@ return {
 		id = 1015,
 		vType = Enums.ArchiveType.Int,
 	},
+	["sv.luexp"] = {
+		dftVal = 0,
+		id = 1022,
+		vType = Enums.ArchiveType.Int,
+	},
 	["sv.lv"] = {
 		dftVal = 1,
 		id = 1010,
@@ -79,6 +89,16 @@ return {
 	["sv.ly"] = {
 		dftVal = 6,
 		id = 1011,
+		vType = Enums.ArchiveType.Int,
+	},
+	["sv.mxDfs"] = {
+		dftVal = 0,
+		id = 1021,
+		vType = Enums.ArchiveType.Int,
+	},
+	["sv.mxhl"] = {
+		dftVal = 0,
+		id = 1020,
 		vType = Enums.ArchiveType.Int,
 	},
 	["sv.tc"] = {
@@ -95,20 +115,5 @@ return {
 		dftVal = 0,
 		id = 1016,
 		vType = Enums.ArchiveType.Int,
-	},
-	["自定义进度15"] = {
-		dftVal = false,
-		id = 1020,
-		vType = Enums.ArchiveType.Bool,
-	},
-	["自定义进度16"] = {
-		dftVal = false,
-		id = 1021,
-		vType = Enums.ArchiveType.Bool,
-	},
-	["自定义进度17"] = {
-		dftVal = false,
-		id = 1022,
-		vType = Enums.ArchiveType.Bool,
 	},
 }

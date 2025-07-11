@@ -67,44 +67,46 @@ end
 -- 游戏数据，runtime & save data
 object.data = {
     --游戏时长（秒）
-    timeCount = 0,
+    timeCount = 0, ---1009
 
     --等级
-    level = 1,
+    level = 1, --- 1010
 
     --层数
-    layer = 1,
+    layer = 1, ---1011
 
     --生命值
-    health = 3600,
+    health = 3600,    ---1012
 
-    maxHealth = 3600,
+    maxHealth = 3600, ---1020
 
     --护盾值
-    defense = 1800,
+    defense = 1800,    ---1013
 
-    maxDefense = 1800,
+    maxDefense = 1800, --- 1021
 
     --升级所需经验值
-    totalExp = 150,
+    totalExp = 150, --- 1022
 
     --当前经验值
-    currentExp = 0,
+    currentExp = 0, ---1014
 
     --游戏统计数据
     gameStats = {
         --击败敌人数
-        kill = 0,
+        kill = 0,            ---1015
         --总伤害
-        totalDamage = 0,
+        totalDamage = 0,     ---1016
         --总承伤
-        totalDefenseAtk = 0,
+        totalDefenseAtk = 0, ---1017
     },
 
     gameSettings = {
-        autoAimEnabled = true
-    }
+        autoAimEnabled = true ---1018
+    },
 
+    --伤害倍数
+    damageMultiple = 1.0, ---1023
 }
 
 ---@class EnemyUnitData
@@ -185,6 +187,13 @@ object.mainTurretExtraData = {
 
 }
 
+function object.startTimer()
+    api.setTimeout(function()
+        object.data.timeCount = object.data.timeCount + 1
+        hud.updateTimer()
+        object.startTimer()
+    end, constant.LOGIC_FPS)
+end
 
 function object.turretCoolDown(turretComponentDataIndex, callback)
     local turretData = object.turretComponentData[turretComponentDataIndex]
@@ -228,11 +237,11 @@ end
 
 --relations
 
--- -- 层数与等级关系
--- -- layer = (level + 2) / 3
--- function object.calLayerNumByLevel(level)
---     return (level + 2) // 3
--- end
+-- 层数与等级关系
+-- layer = (level + 2) / 3
+function object.calLayerNumByLevel(level)
+    return math.min((level + 2) // 3, 6)
+end
 
 function object.isLayerUpLevel(level)
     return (level - 1) % 3 == 0 and level <= 16
@@ -270,7 +279,7 @@ function object.getEnemyTemplateMinIndexByLevel()
 end
 
 function object.getEnemyTemplateMaxIndexByLevel()
-    return 1
+    return object.calLayerNumByLevel(object.data.level)
 end
 
 ---该等级升级到下一级所需经验值
@@ -332,6 +341,8 @@ function object.enemyUnitAtk(enemyUnitData)
 
     local bullet = apiExport.createBullet(bulletTemplateIndex, bulletCreatePosition,
         api.vector.rotationBetweenVec(bulletTemplate.towardsReferenceVec, towards))
+    --设置自身碰撞关闭
+    api.setUnitCollisionStatusWith(bullet, enemyUnitData.base, false)
 
     api.setTimeout(function()
         api.setUnitLinerVelocity(bullet, api.vector.resetVectorLength(towards, enemyUnitData.bulletSpeed))
@@ -374,7 +385,11 @@ end
 ---@param enemyUnitData EnemyUnitData
 ---@param damageValue integer
 function object.dealDamageToEnemyUnit(enemyUnitData, damageValue)
-    local realDamage = damageValue - enemyUnitData.currentDefense
+    local multipleDamage = damageValue * object.data.damageMultiple
+
+    object.data.gameStats.totalDamage = object.data.gameStats.totalDamage + multipleDamage
+
+    local realDamage = multipleDamage - enemyUnitData.currentDefense
     if realDamage > 0 then
         local healthAfterDamage = enemyUnitData.currentHealth - realDamage
         if healthAfterDamage < 0 then
@@ -383,13 +398,17 @@ function object.dealDamageToEnemyUnit(enemyUnitData, damageValue)
         end
         enemyUnitData.currentHealth = healthAfterDamage
     end
-    enemyUnitData.currentDefense = math.max(0, enemyUnitData.currentDefense - damageValue)
+    enemyUnitData.currentDefense = math.max(0, enemyUnitData.currentDefense - multipleDamage)
     hud.updateTargetInfoIfFocus(enemyUnitData, true)
 end
 
 ---击败敌方单位
 ---@param enemyUnitData EnemyUnitData
 function object.defeatEnemyUnit(enemyUnitData)
+    --特效创建
+    --（战火四溅）
+    vfxRender.createVfx(2609, api.positionOf(enemyUnitData.base), math.Quaternion(0, 0, 0), 2.0, 1.0, 1.0, false)
+
     -- 数组移除
     for index, value in ipairs(object.enemyUnitArray) do
         if value == enemyUnitData then
@@ -407,6 +426,9 @@ function object.defeatEnemyUnit(enemyUnitData)
     --经验值
     object.addExp(enemyUnitData.exp)
 
+    object.data.gameStats.kill = object.data.gameStats.kill + 1
+
+    hud.updateEnemyNumInfo()
 
     api.destroyUnit(enemyUnitData.base)
     enemyUnitData.base = nil
@@ -569,6 +591,10 @@ function object.mainTurretAtk()
     -- 进入冷却
     local mainTurretExtraData = object.mainTurretExtraData
     mainTurretExtraData.remainBulletNum = mainTurretExtraData.remainBulletNum - 1
+
+    hud.setBulletNumText(mainTurretExtraData.remainBulletNum)
+
+
     if mainTurretExtraData.remainBulletNum <= 0 then
         -- 进入重新装填状态
         turretStatusData.coolDownStatus = true
@@ -578,6 +604,7 @@ function object.mainTurretAtk()
         end, 6)
         api.setTimeout(function()
             mainTurretExtraData.remainBulletNum = mainTurretExtraData.maxBulletNum
+            hud.setBulletNumText(mainTurretExtraData.remainBulletNum)
             turretStatusData.coolDownStatus = false
         end, mainTurretExtraData.bulletLoadFrame)
     else
@@ -731,23 +758,27 @@ end
 
 function object.gameOver()
     logger.info("game over")
+    hud.showGameOverUI()
 end
 
 function object.dealDamageToMainTurret(damageValue)
+    object.data.gameStats.totalDefenseAtk = object.data.gameStats.totalDefenseAtk + damageValue
+
+
     local originDefense = object.data.defense
     local realDamage = damageValue - originDefense
 
     if realDamage > 0 then
         object.data.health = object.data.health - realDamage
-        if object.data.health <= 0 then
-            object.gameOver()
-            return
-        end
+    end
+
+    if object.data.health <= 0 then
+        object.gameOver()
     end
 
     object.data.defense = math.max(originDefense - damageValue, 0)
 
-    hud.updateSelfInfo(object.data.maxHealth, object.data.health, object.data.maxDefense, object.data.defense)
+    hud.updateSelfInfo()
 end
 
 ---生成扫描序列
@@ -1121,6 +1152,11 @@ function object.levelUpHandler()
             end, 15 * delay)
             delay = delay + 1
         end
+
+        --恢复护盾和生命值
+        object.data.defense = object.data.maxDefense
+        object.data.health = object.data.health + math.tointeger(object.data.maxHealth * 0.2)
+        hud.updateSelfInfo()
     end
 end
 
@@ -1141,13 +1177,10 @@ function object.addExp(value)
     hud.updateLevelInfo()
 end
 
-function object.turretHealthRestore(value)
-
-end
-
 function object.resurrect()
     object.data.health = object.data.maxHealth
     object.data.defense = object.data.maxDefense
+    hud.hideGameOverUI()
 end
 
 -- test
@@ -1389,7 +1422,12 @@ function hud.updateTargetInfo(totalHealth, currentHealth, totalDefense, currentD
     })
 end
 
-function hud.updateSelfInfo(totalHealth, currentHealth, totalDefense, currentDefense)
+function hud.updateSelfInfo()
+    local totalHealth = object.data.maxHealth
+    local currentHealth = object.data.health
+    local totalDefense = object.data.maxDefense
+    local currentDefense = object.data.defense
+
     api.setUIProgressBarData(Player, "1519736575|1156235444", currentHealth, totalHealth, 0.3)
     api.setUIProgressBarData(Player, "1519736575|1943658332", currentDefense, totalDefense, 0.3)
 end
@@ -1423,11 +1461,17 @@ end
 
 function hud.fullUpdate()
     hud.updateUIAutoAimStatus(object.data.gameSettings.autoAimEnabled)
+    hud.updateLevelInfo()
+    hud.updateSelfInfo()
 end
 
 function hud.setBulletLoadProgress(percentage, duration)
     api.sendGlobalCustomEvent(constant.UI_BRIDGE_SET_BULLET_LOAD_PROGRESS,
         { percentage = percentage, duration = duration })
+end
+
+function hud.setBulletNumText(num)
+    api.setUILabelText(Player, "1519736575|2033443810", tostring(num))
 end
 
 ---注意，这个函数使用的参数是浮点数而非整数
@@ -1449,10 +1493,10 @@ function hud.setCurrentTargetInfo(currentHealth, maxHealth, smearEnabled, curren
     if smearEnabled then
         api.setUIProgressBarData(Player, "1519736575|1220800494", currentHealth, maxHealth, 0.4)
     else
-        api.setUIProgressBarData(Player, "1519736575|1220800494", currentHealth, maxHealth, 0.0)
+        api.setUIProgressBarData(Player, "1519736575|1220800494", currentHealth, maxHealth, 0.3)
     end
 
-    api.setUIProgressBarData(Player, "1519736575|1653360581", currentDefense, maxDefense, 0.0)
+    api.setUIProgressBarData(Player, "1519736575|1653360581", currentDefense, maxDefense, 0.3)
 end
 
 ---设置目标信息是否显示
@@ -1480,6 +1524,7 @@ function hud.updateLevelInfo()
     end
     levelString = levelString .. tostring(data.level)
 
+    api.setUILabelText(Player, "1519736575|2102862090", tostring(data.level))
     api.setUILabelText(Player, "1519736575|1117223670", levelString)
 
     --设置经验值信息
@@ -1490,6 +1535,71 @@ function hud.updateLevelInfo()
 
     --设置经验进度条
     api.setUIProgressBarData(Player, "1519736575|1049374565", currentExp, maxExp, 0.3)
+end
+
+function hud.updateEnemyNumInfo()
+    local currentEnemyCount = #object.enemyUnitArray
+    local maxEnemyUnitNum = constant.ENEMY_UNIT_MAX_NUM
+
+    local labelText = ""
+
+    if currentEnemyCount < 10 then
+        labelText = labelText .. "00"
+    else
+        labelText = labelText .. "0"
+    end
+
+    labelText = labelText .. currentEnemyCount .. " / " .. "0" .. maxEnemyUnitNum
+
+
+
+    api.setUILabelText(Player, "1519736575|1860759049", labelText)
+    api.setUIProgressBarData(Player, "1519736575|1591783785", currentEnemyCount, maxEnemyUnitNum, 0.4)
+end
+
+local gameOverUIShowStatus = false
+
+
+function hud.showGameOverUI()
+    if gameOverUIShowStatus then
+        return
+    end
+
+    local buffer = ""
+    buffer = buffer .. "击败敌人数 DEFEATED     " .. object.data.gameStats.kill .. "\n"
+    buffer = buffer .. "总伤害 TOTAL DAMAGE     " .. object.data.gameStats.totalDamage .. "\n"
+    buffer = buffer .. "总承受伤害 TAKE DAMAGE  " .. object.data.gameStats.totalDefenseAtk .. "\n"
+    buffer = buffer ..
+        "每秒伤害 DPS            " .. math.tointeger(object.data.gameStats.totalDamage / object.data.timeCount)
+
+
+    api.setUILabelText(Player, "1519736575|1052370863", buffer)
+
+    api.sendUICustomEvent(Player, "UI_SHOW_GAME_OVER", {})
+    gameOverUIShowStatus = true
+end
+
+function hud.hideGameOverUI()
+    gameOverUIShowStatus = false
+    api.sendUICustomEvent(Player, "UI_HIDE_GAME_OVER", {})
+end
+
+function hud.updateTimer()
+    local timerCount = object.data.timeCount
+    local sec = timerCount % 60
+    local secString = sec < 10 and "0" .. tostring(sec) or tostring(sec)
+
+    timerCount = timerCount // 60
+
+    local min = timerCount % 60
+    local minString = min < 10 and "0" .. tostring(min) or tostring(min)
+
+    timerCount = timerCount // 60
+
+    local hour = timerCount % 60
+    local hourString = hour < 10 and "0" .. tostring(hour) or tostring(hour)
+
+    api.setUILabelText(Player, "1519736575|1675256029", hourString .. ":" .. minString .. ":" .. secString)
 end
 
 -- scene =======================================================================
@@ -1616,8 +1726,10 @@ function scene.generateEnemyUnit()
         table.insert(
             object.enemyUnitArray, enemyUnitData)
 
+        hud.updateEnemyNumInfo()
 
         object.enableEnemyUnitAtkSearch(enemyUnitData)
+
         logger.debug("enemy unit finished")
     end, 6)
 
@@ -1647,6 +1759,7 @@ function scene.init()
 end
 
 -- END==========================================================================
+
 
 return {
     setComponentCacheCreateStatus = setComponentCacheCreateStatus,

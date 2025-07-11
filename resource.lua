@@ -115,7 +115,7 @@ local bulletTemplates = {
     [1] = {
         presetId = 1073774641,
         towardsReferenceVec = math.Vector3(0, 1, 0),
-        defaultZoom = math.Vector3(0.2, 5, 0.2),
+        defaultZoom = math.Vector3(0.3, 5, 0.3),
         destroyEffectPreset = {
             id = 4136,
             rotation = math.Quaternion(0, 0, 0),
@@ -127,7 +127,7 @@ local bulletTemplates = {
     [2] = {
         presetId = 1073832018,
         towardsReferenceVec = math.Vector3(0, 1, 0),
-        defaultZoom = math.Vector3(0.15, 4, 0.15),
+        defaultZoom = math.Vector3(0.2, 4, 0.2),
         destroyEffectPreset = {
             id = 2540,
             rotation = math.Quaternion(0, 0, 0),
@@ -142,6 +142,43 @@ local bulletTemplates = {
         defaultZoom = math.Vector3(0.3, 4, 0.3),
         destroyEffectPreset = {
             id = 829,
+            rotation = math.Quaternion(0, 0, 0),
+            zoom = 3.0,
+            duration = 5.0,
+            speed = 1.0
+        }
+    },
+    --green
+    [4] = {
+        presetId = 1073864761,
+        towardsReferenceVec = math.Vector3(0, 1, 0),
+        defaultZoom = math.Vector3(0.3, 8, 0.3),
+        destroyEffectPreset = {
+            id = 2286,
+            rotation = math.Quaternion(0, 0, 0),
+            zoom = 10.0,
+            duration = 5.0,
+            speed = 1.0
+        }
+    },
+    [5] = {
+        presetId = 1073868866,
+        towardsReferenceVec = math.Vector3(0, 1, 0),
+        defaultZoom = math.Vector3(0.2, 5, 0.2),
+        destroyEffectPreset = {
+            id = 2286,
+            rotation = math.Quaternion(0, 0, 0),
+            zoom = 3.0,
+            duration = 5.0,
+            speed = 1.0
+        }
+    },
+    [6] = {
+        presetId = 1073872942,
+        towardsReferenceVec = math.Vector3(0, 1, 0),
+        defaultZoom = math.Vector3(0.2, 5, 0.2),
+        destroyEffectPreset = {
+            id = 2286,
             rotation = math.Quaternion(0, 0, 0),
             zoom = 3.0,
             duration = 5.0,
@@ -185,7 +222,9 @@ local bulletTemplates = {
 
 ---@type TurretComponentData[]
 local turretComponentData = {
-    --无运动器，未绑定
+
+    -- LAYER: 1 ================================================================
+    --主炮台
     [1] = {
         base = api.getUnitById(1466853682),
 
@@ -217,6 +256,9 @@ local turretComponentData = {
         searchEnemyAngle = { min = 0, max = 360 },
         enabled = true
     },
+
+
+    -- LAYER: 2 ================================================================
     [2] = {
         base = api.getUnitById(1356177493),
         rotationPart = api.getUnitById(1060738399),
@@ -308,6 +350,7 @@ local turretComponentData = {
         searchEnemyAngle = { min = 180, max = 300 },
         enabled = false
     },
+    -- LAYER: 3 ================================================================
     [10] = {
         base = api.getUnitById(1558813753),
         rotationPart = api.getUnitById(1472105670),
@@ -320,9 +363,9 @@ local turretComponentData = {
         -- 2：连发
         -- 3：激光
         atkMethodType = 2,
-        atkCoolDownFrame = 3,
+        atkCoolDownFrame = 4,
         laserSocket = nil,
-        consecutiveShotCount = 10,
+        consecutiveShotCount = 7,
         bulletSpeed = 150,
         damageValuePerBullet = 30,
         fireEffectPreset = {
@@ -350,9 +393,9 @@ local turretComponentData = {
         -- 2：连发
         -- 3：激光
         atkMethodType = 2,
-        atkCoolDownFrame = 3,
+        atkCoolDownFrame = 4,
         laserSocket = nil,
-        consecutiveShotCount = 10,
+        consecutiveShotCount = 7,
         bulletSpeed = 150,
         damageValuePerBullet = 30,
         fireEffectPreset = {
@@ -380,9 +423,9 @@ local turretComponentData = {
         -- 2：连发
         -- 3：激光
         atkMethodType = 2,
-        atkCoolDownFrame = 3,
+        atkCoolDownFrame = 4,
         laserSocket = nil,
-        consecutiveShotCount = 10,
+        consecutiveShotCount = 7,
         bulletSpeed = 150,
         damageValuePerBullet = 30,
         fireEffectPreset = {
@@ -398,22 +441,23 @@ local turretComponentData = {
         searchEnemyAngle = { min = 240, max = 360 },
         enabled = false
     },
+    -- LAYER: 4 ================================================================
     [21] = {
         base = api.getUnitById(1431539842),
         rotationPart = api.getUnitById(1431539842),
         rotationPartBaseOffset = math.Vector3(0, 6, 0),
         towardsReferenceVec = math.Vector3(1, 0, 0),
         bulletCreateOffset = math.Vector3(11.5, -0.25, 0),
-        bulletTemplateIndex = 1,
+        bulletTemplateIndex = 4,
         isMainTurret = false,
         -- 1：普通单发
         -- 2：连发
         -- 3：激光
-        atkMethodType = 2,
+        atkMethodType = 1,
         atkCoolDownFrame = 3,
         laserSocket = nil,
         consecutiveShotCount = 10,
-        bulletSpeed = 150,
+        bulletSpeed = 100,
         damageValuePerBullet = 30,
         fireEffectPreset = {
             id = 2523,
@@ -434,7 +478,7 @@ local turretComponentData = {
         rotationPartBaseOffset = math.Vector3(0, 7, 0),
         towardsReferenceVec = math.Vector3(1, 0, 0),
         bulletCreateOffset = math.Vector3(8, 0, 0),
-        bulletTemplateIndex = 1,
+        bulletTemplateIndex = 4,
         isMainTurret = false,
         -- 1：普通单发
         -- 2：连发
@@ -443,7 +487,7 @@ local turretComponentData = {
         atkCoolDownFrame = 30,
         laserSocket = nil,
         consecutiveShotCount = nil,
-        bulletSpeed = 150,
+        bulletSpeed = 100,
         damageValuePerBullet = 30,
         fireEffectPreset = {
             id = 2523,
@@ -464,7 +508,7 @@ local turretComponentData = {
         rotationPartBaseOffset = math.Vector3(0, 7, 0),
         towardsReferenceVec = math.Vector3(1, 0, 0),
         bulletCreateOffset = math.Vector3(8, 0, 0),
-        bulletTemplateIndex = 1,
+        bulletTemplateIndex = 4,
         isMainTurret = false,
         -- 1：普通单发
         -- 2：连发
@@ -473,7 +517,7 @@ local turretComponentData = {
         atkCoolDownFrame = 30,
         laserSocket = nil,
         consecutiveShotCount = nil,
-        bulletSpeed = 150,
+        bulletSpeed = 100,
         damageValuePerBullet = 30,
         fireEffectPreset = {
             id = 2523,
@@ -494,7 +538,7 @@ local turretComponentData = {
         rotationPartBaseOffset = math.Vector3(0, 7, 0),
         towardsReferenceVec = math.Vector3(1, 0, 0),
         bulletCreateOffset = math.Vector3(8, 0, 0),
-        bulletTemplateIndex = 1,
+        bulletTemplateIndex = 4,
         isMainTurret = false,
         -- 1：普通单发
         -- 2：连发
@@ -503,7 +547,7 @@ local turretComponentData = {
         atkCoolDownFrame = 30,
         laserSocket = nil,
         consecutiveShotCount = nil,
-        bulletSpeed = 150,
+        bulletSpeed = 100,
         damageValuePerBullet = 30,
         fireEffectPreset = {
             id = 2523,
@@ -524,7 +568,7 @@ local turretComponentData = {
         rotationPartBaseOffset = math.Vector3(0, 7, 0),
         towardsReferenceVec = math.Vector3(1, 0, 0),
         bulletCreateOffset = math.Vector3(8, 0, 0),
-        bulletTemplateIndex = 1,
+        bulletTemplateIndex = 4,
         isMainTurret = false,
         -- 1：普通单发
         -- 2：连发
@@ -533,7 +577,7 @@ local turretComponentData = {
         atkCoolDownFrame = 30,
         laserSocket = nil,
         consecutiveShotCount = nil,
-        bulletSpeed = 150,
+        bulletSpeed = 100,
         damageValuePerBullet = 30,
         fireEffectPreset = {
             id = 2523,
@@ -554,7 +598,7 @@ local turretComponentData = {
         rotationPartBaseOffset = math.Vector3(0, 7, 0),
         towardsReferenceVec = math.Vector3(1, 0, 0),
         bulletCreateOffset = math.Vector3(8, 0, 0),
-        bulletTemplateIndex = 1,
+        bulletTemplateIndex = 4,
         isMainTurret = false,
         -- 1：普通单发
         -- 2：连发
@@ -563,7 +607,7 @@ local turretComponentData = {
         atkCoolDownFrame = 30,
         laserSocket = nil,
         consecutiveShotCount = nil,
-        bulletSpeed = 150,
+        bulletSpeed = 100,
         damageValuePerBullet = 30,
         fireEffectPreset = {
             id = 2523,
@@ -578,12 +622,7 @@ local turretComponentData = {
         searchEnemyAngle = { min = 300, max = 360 },
         enabled = false
     },
-
-
-
-
-
-
+    -- LAYER: 5 ================================================================
     [42] = {
         base = api.getUnitById(2109476092),
         rotationPart = nil,
@@ -647,6 +686,7 @@ local turretComponentData = {
         searchEnemyAngle = { min = 240, max = 360 },
         enabled = false
     },
+    -- LAYER: 6 ================================================================
     [62] = {
         base = api.getUnitById(1550430116),
         rotationPart = nil,
@@ -839,15 +879,41 @@ local turretComponentData = {
 
 }
 
-
+--敌方单位模型数据
 local enemyUnitTemplates = {
     [1] = {
-        presetId = 1073823833,
+        presetId = 1073840162,
         towardsReferenceVector = math.Vector3(1, 0, 0),
         defaultZoom = math.Vector3(1.92, 0.17, 2.00),
     },
+    [2] = {
+        presetId = 1073844327,
+        towardsReferenceVector = math.Vector3(1, 0, 0),
+        defaultZoom = math.Vector3(0.96, 0.33, 1.00),
+    },
+    [3] = {
+        presetId = 1073848383,
+        towardsReferenceVector = math.Vector3(1, 0, 0),
+        defaultZoom = math.Vector3(1.15, 1.20, 1.20),
+    },
+    [4] = {
+        presetId = 1073852479,
+        towardsReferenceVector = math.Vector3(1, 0, 0),
+        defaultZoom = math.Vector3(0.94, 2.60, 0.97),
+    },
+    [5] = {
+        presetId = 1073856531,
+        towardsReferenceVector = math.Vector3(1, 0, 0),
+        defaultZoom = math.Vector3(1.92, 0.33, 2.00),
+    },
+    [6] = {
+        presetId = 1073860631,
+        towardsReferenceVector = math.Vector3(0, 0, 1),
+        defaultZoom = math.Vector3(1.00, 1.00, 1.04),
+    },
 }
 
+--敌方单位属性
 local enemyUnitProperties = {
     [1] = {
         templateUnitIndex = 1,
@@ -856,6 +922,71 @@ local enemyUnitProperties = {
         maxHealthValue = 1000,
         maxDefenseValue = 600,
         bulletTemplateIndex = 3,
+        bulletSpeed = 100,
+        atkIntervalFrame = 101,
+        bulletNumPerAtk = 3,
+        bulletIntervalFrame = 17,
+        exp = 300
+    },
+    [2] = {
+        templateUnitIndex = 2,
+        atkMethodType = 1,
+        damageValuePerBullet = 30,
+        maxHealthValue = 2000,
+        maxDefenseValue = 1600,
+        bulletTemplateIndex = 3,
+        bulletSpeed = 100,
+        atkIntervalFrame = 101,
+        bulletNumPerAtk = 3,
+        bulletIntervalFrame = 17,
+        exp = 300
+    },
+    [3] = {
+        templateUnitIndex = 3,
+        atkMethodType = 1,
+        damageValuePerBullet = 40,
+        maxHealthValue = 3000,
+        maxDefenseValue = 2600,
+        bulletTemplateIndex = 5,
+        bulletSpeed = 100,
+        atkIntervalFrame = 101,
+        bulletNumPerAtk = 3,
+        bulletIntervalFrame = 17,
+        exp = 300
+    },
+    [4] = {
+        templateUnitIndex = 4,
+        atkMethodType = 1,
+        damageValuePerBullet = 50,
+        maxHealthValue = 4000,
+        maxDefenseValue = 3600,
+        bulletTemplateIndex = 5,
+        bulletSpeed = 100,
+        atkIntervalFrame = 101,
+        bulletNumPerAtk = 3,
+        bulletIntervalFrame = 17,
+        exp = 300
+    },
+    [5] = {
+        templateUnitIndex = 5,
+        atkMethodType = 1,
+        damageValuePerBullet = 60,
+        maxHealthValue = 5000,
+        maxDefenseValue = 4600,
+        bulletTemplateIndex = 6,
+        bulletSpeed = 100,
+        atkIntervalFrame = 101,
+        bulletNumPerAtk = 3,
+        bulletIntervalFrame = 17,
+        exp = 300
+    },
+    [6] = {
+        templateUnitIndex = 6,
+        atkMethodType = 1,
+        damageValuePerBullet = 70,
+        maxHealthValue = 6000,
+        maxDefenseValue = 5600,
+        bulletTemplateIndex = 6,
         bulletSpeed = 100,
         atkIntervalFrame = 101,
         bulletNumPerAtk = 3,

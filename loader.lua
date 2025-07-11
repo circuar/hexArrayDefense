@@ -2,7 +2,7 @@ local constant  = require("constant")
 local game      = require("game")
 local api       = require("api")
 local logger    = require("api").logger
-local json      = require("api").json
+-- local json      = require("api").json
 local manager   = require("manager")
 local vfxRender = require("vfxRender")
 
@@ -52,10 +52,24 @@ local function loadPlayerGameStats(player, statsRef)
     -- 加载游戏统计数据
     statsRef.totalGames = api.fetchArchiveData(player, Enums.ArchiveType.Int, 1004)
     statsRef.totalKills = api.fetchArchiveData(player, Enums.ArchiveType.Int, 1005)
-    statsRef.totalDamageTaken = api.fetchArchiveData(player, Enums.ArchiveType.Int, 1006)
-    statsRef.maxSurvivalTime = api.fetchArchiveData(player, Enums.ArchiveType.Int, 1007)
+    statsRef.totalDamage = api.fetchArchiveData(player, Enums.ArchiveType.Int, 1006)
+    statsRef.totalDamageTaken = api.fetchArchiveData(player, Enums.ArchiveType.Int, 1007)
+    statsRef.maxSurvivalTime = api.fetchArchiveData(player, Enums.ArchiveType.Int, 1008)
 end
 
+local function uploadPlayerGameStats(player, statsRef)
+    statsRef.totalGames = statsRef.totalGames + 1
+    statsRef.totalKills = statsRef.totalKills + game.object.data.gameStats.kill
+    statsRef.totalDamage = statsRef.totalDamage + game.object.data.gameStats.totalDamage
+    statsRef.totalDamageTaken = statsRef.totalDamageTaken + game.object.data.gameStats.totalDefenseAtk
+    statsRef.maxSurvivalTime = statsRef.maxSurvivalTime + game.object.data.timeCount
+
+    api.saveArchiveData(player, Enums.ArchiveType.Int, 1004, statsRef.totalGames)
+    api.saveArchiveData(player, Enums.ArchiveType.Int, 1005, statsRef.totalKills)
+    api.saveArchiveData(player, Enums.ArchiveType.Int, 1006, statsRef.totalDamage)
+    api.saveArchiveData(player, Enums.ArchiveType.Int, 1007, statsRef.totalDamageTaken)
+    api.saveArchiveData(player, Enums.ArchiveType.Int, 1008, statsRef.maxSurvivalTime)
+end
 
 ---刷新UI设置界面
 local function refreshSettingsUI()
@@ -88,7 +102,8 @@ end
 
 local function checkSavedGameArchive()
     local gameArchiveStatus = api.fetchArchiveData(Player, Enums.ArchiveType.Bool, 1019)
-    return gameArchiveStatus
+    print(gameArchiveStatus)
+    return gameArchiveStatus == true
 end
 
 ---清除存档
@@ -105,8 +120,6 @@ end
 local function loadGame()
     local data = nil
 
-
-
     if checkSavedGameArchive() then
         data = {
             --游戏时长（秒）
@@ -121,13 +134,21 @@ local function loadGame()
             --生命值
             health = api.fetchArchiveData(Player, Enums.ArchiveType.Int, 1012),
 
+            --最大生命值
+            maxHealth = api.fetchArchiveData(Player, Enums.ArchiveType.Int, 1020),
+
             --护盾值
             defense = api.fetchArchiveData(Player, Enums.ArchiveType.Int, 1013),
 
-            --经验值
-            totalExp = api.fetchArchiveData(Player, Enums.ArchiveType.Int, 1014),
+            --最大护盾值
+            maxDefense = api.fetchArchiveData(Player, Enums.ArchiveType.Int, 1021),
 
-            
+            --升级所需经验值
+            totalExp = api.fetchArchiveData(Player, Enums.ArchiveType.Int, 1022),
+
+            --当前经验值
+            currentExp = api.fetchArchiveData(Player, Enums.ArchiveType.Int, 1014),
+
 
             --游戏统计数据
             gameStats = {
@@ -140,8 +161,9 @@ local function loadGame()
             },
 
             gameSettings = {
-                autoAimEnabled = api.fetchArchiveData(Player, Enums.ArchiveType.Bool, 1018)
-            }
+                autoAimEnabled = api.fetchArchiveData(Player, Enums.ArchiveType.Bool, 1018),
+            },
+            damageMultiple = api.fetchArchiveData(Player, Enums.ArchiveType.Fixed, 1023)
         }
     end
 
@@ -149,9 +171,28 @@ local function loadGame()
     game.object.init(data)
 end
 
+---上传存档
+---@param data table
+local function saveGame(data)
+    api.saveArchiveData(Player, Enums.ArchiveType.Int, 1009, math.tointeger(data.timeCount))
+    api.saveArchiveData(Player, Enums.ArchiveType.Int, 1010, math.tointeger(data.level))
+    api.saveArchiveData(Player, Enums.ArchiveType.Int, 1011, math.tointeger(data.layer))
+    api.saveArchiveData(Player, Enums.ArchiveType.Int, 1012, math.tointeger(data.health))
+    api.saveArchiveData(Player, Enums.ArchiveType.Int, 1020, math.tointeger(data.maxHealth))
+    api.saveArchiveData(Player, Enums.ArchiveType.Int, 1013, math.tointeger(data.defense))
+    api.saveArchiveData(Player, Enums.ArchiveType.Int, 1021, math.tointeger(data.maxDefense))
+    api.saveArchiveData(Player, Enums.ArchiveType.Int, 1022, math.tointeger(data.totalExp))
+    api.saveArchiveData(Player, Enums.ArchiveType.Int, 1014, math.tointeger(data.currentExp))
+    api.saveArchiveData(Player, Enums.ArchiveType.Int, 1015, math.tointeger(data.gameStats.kill))
+    api.saveArchiveData(Player, Enums.ArchiveType.Int, 1016, math.tointeger(data.gameStats.totalDamage))
+    api.saveArchiveData(Player, Enums.ArchiveType.Int, 1017, math.tointeger(data.gameStats.totalDefenseAtk))
+    api.saveArchiveData(Player, Enums.ArchiveType.Bool, 1018, data.gameSettings.autoAimEnabled)
+    api.saveArchiveData(Player, Enums.ArchiveType.Fixed, 1023, math.tofixed(data.damageMultiple))
 
 
-
+    api.saveArchiveData(Player, Enums.ArchiveType.Bool, 1019, true)
+    logger.info("archive save completed")
+end
 -- LOAD GAME ===================================================================
 
 
@@ -206,7 +247,7 @@ local function doStartNewGame()
         -- 移动监听器
         api.registerGlobalCustomEventListener(constant.UI_CAMERA_MOVE_EVENT,
             function(unit, name, data)
-                logger.debug("camera move event")
+                -- logger.debug("camera move event")
                 local xzVec = game.camera.slidAngleTransform(data.angle)
                 game.camera.ctrlMove(xzVec, false)
             end)
@@ -214,7 +255,7 @@ local function doStartNewGame()
         --停止监听器
         api.registerGlobalCustomEventListener(constant.UI_CAMERA_MOVE_STOP_EVENT,
             function(unit, name, data)
-                logger.debug("camera move stop")
+                -- logger.debug("camera move stop")
                 game.camera.handlerCameraStopCtrlMoveEvent()
             end)
     end, 50)
@@ -236,12 +277,13 @@ local function doStartNewGame()
 
     api.setTimeout(function()
         hideLoadingUI(Player)
+        game.object.startTimer()
     end, 90)
 end
 
 -- 开始游戏逻辑=================================================================
 local function startNewGame()
-    if (checkSavedGameArchive) then
+    if checkSavedGameArchive() then
         logger.warn("Saved game archive found when starting a new game.")
         showDeleteArchiveUI()
         return
@@ -286,8 +328,34 @@ local function showMainMenu(player)
     api.sendUICustomEvent(player, constant.UI_SHOW_MAIN_MENU_EVENT, {})
 end
 
+
+
+local function exitGamePreHandler()
+    ---通常游戏结束才会显示退出界面，所以此时可以执行清除失败存档逻辑
+    deleteSavedGameArchive()
+    uploadPlayerGameStats(Player, GameStats)
+end
+
+
 ---初始化游戏逻辑
 local function init()
+    --手动存档
+    api.registerGlobalCustomEventListener(constant.MANUAL_SAVE_ARCHIVE, function()
+        saveGame(game.object.data)
+        GlobalAPI.show_tips("存档成功")
+    end)
+
+    --广告服务
+    --广告播放成功后执行复活逻辑
+    api.registerGlobalCustomEventListener(constant.BRIDGE_AD_VIDEO_WATCH_SUCCESS, function()
+        game.object.resurrect()
+    end)
+
+    api.registerGlobalCustomEventListener(constant.EXIT_GAME, function()
+        exitGamePreHandler()
+        GameAPI.game_end()
+    end)
+
     --注册新游戏监听器
     api.registerGlobalCustomEventListener(constant.UI_NEW_GAME_EVENT, function()
         logger.info("new game started")

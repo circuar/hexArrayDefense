@@ -62,7 +62,7 @@ local function uploadPlayerGameStats(player, statsRef)
     statsRef.totalKills = statsRef.totalKills + game.object.data.gameStats.kill
     statsRef.totalDamage = statsRef.totalDamage + game.object.data.gameStats.totalDamage
     statsRef.totalDamageTaken = statsRef.totalDamageTaken + game.object.data.gameStats.totalDefenseAtk
-    statsRef.maxSurvivalTime = statsRef.maxSurvivalTime + game.object.data.timeCount
+    statsRef.maxSurvivalTime = math.max(statsRef.maxSurvivalTime, game.object.data.timeCount)
 
     api.saveArchiveData(player, Enums.ArchiveType.Int, 1004, statsRef.totalGames)
     api.saveArchiveData(player, Enums.ArchiveType.Int, 1005, statsRef.totalKills)
@@ -280,8 +280,6 @@ local function doStartNewGame()
         game.object.startTimer()
 
         api.sendGlobalCustomEvent(constant.GAME_BGM_SWITCH, {})
-
-
     end, 90)
 end
 

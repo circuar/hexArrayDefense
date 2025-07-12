@@ -81,6 +81,8 @@ return {
     EXIT_GAME = "GLOBAL_EVENT_EXIT",
     MANUAL_SAVE_ARCHIVE = "UI_EVENT_SAVE_ARCHIVE",
 
+    GAME_BGM_SWITCH = "GLOBAL_EVENT_SWITCH_BGM",
+
     --HUD status enum
     ---@enum hudStatus
     cursorStatusEnum = {

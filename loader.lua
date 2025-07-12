@@ -278,6 +278,10 @@ local function doStartNewGame()
     api.setTimeout(function()
         hideLoadingUI(Player)
         game.object.startTimer()
+
+        api.sendGlobalCustomEvent(constant.GAME_BGM_SWITCH, {})
+
+
     end, 90)
 end
 

@@ -242,7 +242,7 @@ local turretComponentData = {
         laserSocket = nil,
         consecutiveShotCount = nil, --使用extraData中的数值，此处已弃用
         bulletSpeed = 150,
-        damageValuePerBullet = 140,
+        damageValuePerBullet = 14,
         fireEffectPreset = {
             id = 2523,
             ---x:径向 y:竖直
@@ -273,9 +273,9 @@ local turretComponentData = {
         atkMethodType = 1,
         atkCoolDownFrame = nil,
         laserSocket = nil,
-        consecutiveShotCount = 5,
+        consecutiveShotCount = nil,
         bulletSpeed = 150,
-        damageValuePerBullet = 30,
+        damageValuePerBullet = 54,
         fireEffectPreset = {
             id = 2523,
             ---x:径向 y:竖直
@@ -305,7 +305,7 @@ local turretComponentData = {
         laserSocket = nil,
         consecutiveShotCount = nil,
         bulletSpeed = 150,
-        damageValuePerBullet = 30,
+        damageValuePerBullet = 54,
         fireEffectPreset = {
             id = 2523,
             ---x:径向 y:竖直
@@ -336,7 +336,7 @@ local turretComponentData = {
         laserSocket = nil,
         consecutiveShotCount = nil,
         bulletSpeed = 150,
-        damageValuePerBullet = 30,
+        damageValuePerBullet = 54,
         fireEffectPreset = {
             id = 2523,
             ---x:径向 y:竖直
@@ -367,7 +367,7 @@ local turretComponentData = {
         laserSocket = nil,
         consecutiveShotCount = 7,
         bulletSpeed = 150,
-        damageValuePerBullet = 30,
+        damageValuePerBullet = 6,
         fireEffectPreset = {
             id = 2523,
             ---x:径向 y:竖直
@@ -397,7 +397,7 @@ local turretComponentData = {
         laserSocket = nil,
         consecutiveShotCount = 7,
         bulletSpeed = 150,
-        damageValuePerBullet = 30,
+        damageValuePerBullet = 6,
         fireEffectPreset = {
             id = 2523,
             ---x:径向 y:竖直
@@ -427,7 +427,7 @@ local turretComponentData = {
         laserSocket = nil,
         consecutiveShotCount = 7,
         bulletSpeed = 150,
-        damageValuePerBullet = 30,
+        damageValuePerBullet = 6,
         fireEffectPreset = {
             id = 2523,
             ---x:径向 y:竖直
@@ -443,9 +443,9 @@ local turretComponentData = {
     },
     -- LAYER: 4 ================================================================
     [21] = {
-        base = api.getUnitById(1431539842),
+        base = api.getUnitById(1897313435),
         rotationPart = api.getUnitById(1431539842),
-        rotationPartBaseOffset = math.Vector3(0, 6, 0),
+        rotationPartBaseOffset = math.Vector3(0, 7, 0),
         towardsReferenceVec = math.Vector3(1, 0, 0),
         bulletCreateOffset = math.Vector3(11.5, -0.25, 0),
         bulletTemplateIndex = 4,
@@ -458,7 +458,7 @@ local turretComponentData = {
         laserSocket = nil,
         consecutiveShotCount = nil,
         bulletSpeed = 150,
-        damageValuePerBullet = 30,
+        damageValuePerBullet = 14,
         fireEffectPreset = {
             id = 2284,
             ---x:径向(towards向量) y:竖直（世界y轴）
@@ -488,7 +488,7 @@ local turretComponentData = {
         laserSocket = nil,
         consecutiveShotCount = nil,
         bulletSpeed = 150,
-        damageValuePerBullet = 30,
+        damageValuePerBullet = 14,
         fireEffectPreset = {
             id = 2284,
             ---x:径向 y:竖直
@@ -518,7 +518,7 @@ local turretComponentData = {
         laserSocket = nil,
         consecutiveShotCount = nil,
         bulletSpeed = 150,
-        damageValuePerBullet = 30,
+        damageValuePerBullet = 14,
         fireEffectPreset = {
             id = 2284,
             ---x:径向 y:竖直
@@ -548,7 +548,7 @@ local turretComponentData = {
         laserSocket = nil,
         consecutiveShotCount = nil,
         bulletSpeed = 150,
-        damageValuePerBullet = 30,
+        damageValuePerBullet = 14,
         fireEffectPreset = {
             id = 2284,
             ---x:径向 y:竖直
@@ -578,7 +578,7 @@ local turretComponentData = {
         laserSocket = nil,
         consecutiveShotCount = nil,
         bulletSpeed = 150,
-        damageValuePerBullet = 30,
+        damageValuePerBullet = 14,
         fireEffectPreset = {
             id = 2284,
             ---x:径向 y:竖直
@@ -608,7 +608,7 @@ local turretComponentData = {
         laserSocket = nil,
         consecutiveShotCount = nil,
         bulletSpeed = 150,
-        damageValuePerBullet = 30,
+        damageValuePerBullet = 14,
         fireEffectPreset = {
             id = 2284,
             ---x:径向 y:竖直
@@ -639,7 +639,7 @@ local turretComponentData = {
         laserSocket = api.getUnitById(1488090547),
         consecutiveShotCount = nil,
         bulletSpeed = nil,
-        damageValuePerBullet = 80,
+        damageValuePerBullet = 27,
         fireEffectPreset = nil,
         searchEnemyAngle = { min = 0, max = 120 },
         enabled = false
@@ -660,7 +660,7 @@ local turretComponentData = {
         laserSocket = api.getUnitById(2003057836),
         consecutiveShotCount = nil,
         bulletSpeed = nil,
-        damageValuePerBullet = 80,
+        damageValuePerBullet = 27,
         fireEffectPreset = nil,
         searchEnemyAngle = { min = 120, max = 240 },
         enabled = false
@@ -681,7 +681,7 @@ local turretComponentData = {
         laserSocket = api.getUnitById(1594483526),
         consecutiveShotCount = nil,
         bulletSpeed = nil,
-        damageValuePerBullet = 80,
+        damageValuePerBullet = 27,
         fireEffectPreset = nil,
         searchEnemyAngle = { min = 240, max = 360 },
         enabled = false
@@ -703,7 +703,7 @@ local turretComponentData = {
         laserSocket = api.getUnitById(2003089849),
         consecutiveShotCount = nil,
         bulletSpeed = nil,
-        damageValuePerBullet = 80,
+        damageValuePerBullet = 10,
         fireEffectPreset = nil,
         searchEnemyAngle = { min = 300, max = 60 },
         enabled = false
@@ -724,7 +724,7 @@ local turretComponentData = {
         laserSocket = api.getUnitById(1289343131),
         consecutiveShotCount = nil,
         bulletSpeed = nil,
-        damageValuePerBullet = 80,
+        damageValuePerBullet = 10,
         fireEffectPreset = nil,
         searchEnemyAngle = { min = 0, max = 120 },
         enabled = false
@@ -745,7 +745,7 @@ local turretComponentData = {
         laserSocket = api.getUnitById(1156742984),
         consecutiveShotCount = nil,
         bulletSpeed = nil,
-        damageValuePerBullet = 80,
+        damageValuePerBullet = 10,
         fireEffectPreset = nil,
         searchEnemyAngle = { min = 0, max = 120 },
         enabled = false
@@ -766,7 +766,7 @@ local turretComponentData = {
         laserSocket = api.getUnitById(1095471515),
         consecutiveShotCount = nil,
         bulletSpeed = nil,
-        damageValuePerBullet = 80,
+        damageValuePerBullet = 10,
         fireEffectPreset = nil,
         searchEnemyAngle = { min = 60, max = 180 },
         enabled = false
@@ -787,7 +787,7 @@ local turretComponentData = {
         laserSocket = api.getUnitById(1750897763),
         consecutiveShotCount = nil,
         bulletSpeed = nil,
-        damageValuePerBullet = 80,
+        damageValuePerBullet = 10,
         fireEffectPreset = nil,
         searchEnemyAngle = { min = 120, max = 240 },
         enabled = false
@@ -808,7 +808,7 @@ local turretComponentData = {
         laserSocket = api.getUnitById(1755754311),
         consecutiveShotCount = nil,
         bulletSpeed = nil,
-        damageValuePerBullet = 80,
+        damageValuePerBullet = 10,
         fireEffectPreset = nil,
         searchEnemyAngle = { min = 120, max = 240 },
         enabled = false
@@ -829,7 +829,7 @@ local turretComponentData = {
         laserSocket = api.getUnitById(1195608726),
         consecutiveShotCount = nil,
         bulletSpeed = nil,
-        damageValuePerBullet = 80,
+        damageValuePerBullet = 10,
         fireEffectPreset = nil,
         searchEnemyAngle = { min = 180, max = 300 },
         enabled = false
@@ -850,7 +850,7 @@ local turretComponentData = {
         laserSocket = api.getUnitById(2130635584),
         consecutiveShotCount = nil,
         bulletSpeed = nil,
-        damageValuePerBullet = 80,
+        damageValuePerBullet = 10,
         fireEffectPreset = nil,
         searchEnemyAngle = { min = 240, max = 360 },
         enabled = false
@@ -871,7 +871,7 @@ local turretComponentData = {
         laserSocket = api.getUnitById(1630039992),
         consecutiveShotCount = nil,
         bulletSpeed = nil,
-        damageValuePerBullet = 80,
+        damageValuePerBullet = 10,
         fireEffectPreset = nil,
         searchEnemyAngle = { min = 240, max = 360 },
         enabled = false
@@ -909,7 +909,7 @@ local enemyUnitTemplates = {
     [6] = {
         presetId = 1073860631,
         towardsReferenceVector = math.Vector3(0, 0, 1),
-        defaultZoom = math.Vector3(1.00, 1.00, 1.04),
+        defaultZoom = math.Vector3(3.00, 3.00, 3.12),
     },
 }
 
@@ -919,79 +919,79 @@ local enemyUnitProperties = {
         templateUnitIndex = 1,
         atkMethodType = 1,
         damageValuePerBullet = 20,
-        maxHealthValue = 1000,
-        maxDefenseValue = 600,
+        maxHealthValue = 134,
+        maxDefenseValue = 65,
         bulletTemplateIndex = 3,
         bulletSpeed = 100,
         atkIntervalFrame = 101,
         bulletNumPerAtk = 3,
         bulletIntervalFrame = 17,
-        exp = 300
+        exp = 42
     },
     [2] = {
         templateUnitIndex = 2,
         atkMethodType = 1,
-        damageValuePerBullet = 30,
-        maxHealthValue = 2000,
-        maxDefenseValue = 1600,
+        damageValuePerBullet = 25,
+        maxHealthValue = 966,
+        maxDefenseValue = 503,
         bulletTemplateIndex = 3,
         bulletSpeed = 100,
         atkIntervalFrame = 101,
         bulletNumPerAtk = 3,
         bulletIntervalFrame = 17,
-        exp = 300
+        exp = 42
     },
     [3] = {
         templateUnitIndex = 3,
         atkMethodType = 1,
-        damageValuePerBullet = 40,
-        maxHealthValue = 3000,
-        maxDefenseValue = 2600,
+        damageValuePerBullet = 30,
+        maxHealthValue = 1280,
+        maxDefenseValue = 740,
         bulletTemplateIndex = 5,
         bulletSpeed = 100,
         atkIntervalFrame = 101,
         bulletNumPerAtk = 3,
         bulletIntervalFrame = 17,
-        exp = 300
+        exp = 42
     },
     [4] = {
         templateUnitIndex = 4,
         atkMethodType = 1,
-        damageValuePerBullet = 50,
-        maxHealthValue = 4000,
-        maxDefenseValue = 3600,
+        damageValuePerBullet = 35,
+        maxHealthValue = 2064,
+        maxDefenseValue = 1082,
         bulletTemplateIndex = 5,
         bulletSpeed = 100,
         atkIntervalFrame = 101,
         bulletNumPerAtk = 3,
         bulletIntervalFrame = 17,
-        exp = 300
+        exp = 42
     },
     [5] = {
         templateUnitIndex = 5,
         atkMethodType = 1,
-        damageValuePerBullet = 60,
-        maxHealthValue = 5000,
-        maxDefenseValue = 4600,
+        damageValuePerBullet = 40,
+        maxHealthValue = 2635,
+        maxDefenseValue = 1420,
         bulletTemplateIndex = 6,
         bulletSpeed = 100,
         atkIntervalFrame = 101,
         bulletNumPerAtk = 3,
         bulletIntervalFrame = 17,
-        exp = 300
+        exp = 42
     },
     [6] = {
         templateUnitIndex = 6,
         atkMethodType = 1,
-        damageValuePerBullet = 70,
-        maxHealthValue = 6000,
-        maxDefenseValue = 5600,
+        damageValuePerBullet = 50,
+        maxHealthValue = 3196,
+        maxDefenseValue = 1748,
         bulletTemplateIndex = 6,
         bulletSpeed = 100,
         atkIntervalFrame = 101,
         bulletNumPerAtk = 3,
         bulletIntervalFrame = 17,
-        exp = 300
+        exp = 42
     }
 }
 

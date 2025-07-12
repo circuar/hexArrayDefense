@@ -6,6 +6,7 @@ local manager     = require("manager")
 local resource    = require("resource")
 local vfxRender   = require("vfxRender")
 local bridgeLib   = require("bridgeLib")
+
 -- local UINodes  = require("Data.UINodes")
 
 local object      = {}
@@ -38,6 +39,8 @@ local originCreateBullet  = function(bulletTemplateIndex, createPosition, initia
             presetParam.duration,
             presetParam.speed, false)
     end)
+
+
 
     return bullet
 end
@@ -172,7 +175,7 @@ object.mainTurretExtraData = {
     rapidLoadFrame = 450,
     rapidIntervalFrame = 3,
     rapidBulletSpeed = 200,
-    damageValuePerRapidBullet = 25,
+    damageValuePerRapidBullet = 4,
 
     rapidBulletCreateLeftOffset = math.Vector3(-3.75, 0.5, 5),
     rapidBulletCreateRightOffset = math.Vector3(3.75, 0.5, 5),
@@ -281,7 +284,7 @@ end
 
 -- 敌方单位的等级和游戏等级的关系
 function object.getEnemyTemplateMinIndexByLevel()
-    return 1
+    return math.max(1, object.calLayerNumByLevel(object.data.level) - 2)
 end
 
 function object.getEnemyTemplateMaxIndexByLevel()
@@ -347,6 +350,8 @@ function object.enemyUnitAtk(enemyUnitData)
 
     local bullet = apiExport.createBullet(bulletTemplateIndex, bulletCreatePosition,
         api.vector.rotationBetweenVec(bulletTemplate.towardsReferenceVec, towards))
+
+    api.playAudio(bullet, 1992, 350.0, "linear")
     --设置自身碰撞关闭
     api.setUnitCollisionStatusWith(bullet, enemyUnitData.base, false)
 
@@ -395,11 +400,9 @@ function object.dealDamageToEnemyUnit(enemyUnitData, damageValue)
         return
     end
 
-    local multipleDamage = damageValue * object.data.damageMultiple
+    object.data.gameStats.totalDamage = object.data.gameStats.totalDamage + damageValue
 
-    object.data.gameStats.totalDamage = object.data.gameStats.totalDamage + multipleDamage
-
-    local realDamage = multipleDamage - enemyUnitData.currentDefense
+    local realDamage = damageValue - enemyUnitData.currentDefense
     if realDamage > 0 then
         local healthAfterDamage = enemyUnitData.currentHealth - realDamage
         if healthAfterDamage < 0 then
@@ -408,7 +411,7 @@ function object.dealDamageToEnemyUnit(enemyUnitData, damageValue)
         end
         enemyUnitData.currentHealth = healthAfterDamage
     end
-    enemyUnitData.currentDefense = math.max(0, enemyUnitData.currentDefense - multipleDamage)
+    enemyUnitData.currentDefense = math.max(0, enemyUnitData.currentDefense - damageValue)
     hud.updateTargetInfoIfFocus(enemyUnitData, true)
 end
 
@@ -564,6 +567,9 @@ function object.mainTurretAtk()
     --创建子弹
     local bullet = apiExport.createBullet(1, bulletCreatePosition, bulletRotation)
 
+    api.playAudio(bullet, 5532, 350.0, "linear")
+
+
     --设置子弹禁用护盾碰撞体积
     api.setUnitCollisionStatusWith(bullet, resource.turretCollision, false)
 
@@ -589,9 +595,11 @@ function object.mainTurretAtk()
             -- apiExport.createVfx(4136, position)
             for index, value in ipairs(object.enemyUnitArray) do
                 if value.base == withUnit then
-                    object.dealDamageToEnemyUnit(value, turretData.damageValuePerBullet)
+                    local multipleDamage = turretData.damageValuePerBullet * object.data.damageMultiple
+                    object.dealDamageToEnemyUnit(value, multipleDamage)
                 end
             end
+            api.playAudio(camera.cameraBindComponent, 10776, 350.0, "linear")
         end
         -- api.registerUnitTriggerEventListener(bullet, { EVENT.SPEC_OBSTACLE_CONTACT_BEGAN }, collisionCallback)
         api.extra.addUnitCollisionListener(bullet, collisionCallback)
@@ -721,6 +729,7 @@ function object.mainTurretRapidAttack()
         --创建子弹
         local bullet = apiExport.createBullet(2, bulletCreatePosition, bulletRotation)
 
+
         --设置子弹禁用护盾碰撞体积
         api.setUnitCollisionStatusWith(bullet, resource.turretCollision, false)
 
@@ -748,7 +757,8 @@ function object.mainTurretRapidAttack()
 
                 for index, value in ipairs(object.enemyUnitArray) do
                     if value.base == withUnit then
-                        object.dealDamageToEnemyUnit(value, turretExtData.damageValuePerRapidBullet)
+                        local multipleDamage = turretExtData.damageValuePerRapidBullet * object.data.damageMultiple
+                        object.dealDamageToEnemyUnit(value, multipleDamage)
                     end
                 end
             end
@@ -1168,6 +1178,11 @@ function object.levelUpHandler()
             end, 15 * delay)
             delay = delay + 1
         end
+
+        --攻击倍数+0.5
+        if object.data.level <= 19 then
+            object.data.damageMultiple = object.data.damageMultiple + 1
+        end
     end
 
     --恢复护盾和生命值
@@ -1187,6 +1202,7 @@ function object.addExp(value)
         object.data.level = object.data.level + 1
         object.data.currentExp = expSum - object.data.totalExp
         object.data.totalExp = object.getCurrentLevelExp(object.data.level)
+
         object.levelUpHandler()
         logger.info("level up")
     else
@@ -1197,6 +1213,7 @@ function object.addExp(value)
 end
 
 function object.resurrect()
+    gameRunning = true
     object.data.health = object.data.maxHealth
     object.data.defense = object.data.maxDefense
     hud.hideGameOverUI()
@@ -1585,14 +1602,14 @@ function hud.showGameOverUI()
     end
 
     local buffer = ""
-    buffer = buffer .. "击败敌人数 DEFEATED     " .. object.data.gameStats.kill .. "\n"
-    buffer = buffer .. "总伤害 TOTAL DAMAGE     " .. object.data.gameStats.totalDamage .. "\n"
-    buffer = buffer .. "总承受伤害 TAKE DAMAGE  " .. object.data.gameStats.totalDefenseAtk .. "\n"
-    buffer = buffer ..
-        "每秒伤害 DPS            " .. math.tointeger(object.data.gameStats.totalDamage / object.data.timeCount)
+    buffer = buffer .. object.data.timeCount .. "s\n"
+    buffer = buffer .. object.data.level .. "\n"
+    buffer = buffer .. object.data.gameStats.totalDefenseAtk .. "\n"
+    buffer = buffer .. object.data.gameStats.totalDamage .. "\n"
+    buffer = buffer .. object.data.gameStats.kill
 
 
-    api.setUILabelText(Player, "1519736575|1052370863", buffer)
+    api.setUILabelText(Player, "1519736575|2145049546", buffer)
 
     api.sendUICustomEvent(Player, "UI_SHOW_GAME_OVER", {})
     gameOverUIShowStatus = true

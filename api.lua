@@ -333,6 +333,24 @@ function api.setUILabelText(player, uiNode, text)
     player.set_label_text(uiNode, text)
 end
 
+---播放声音
+---@param unit Unit
+---@param soundKey integer
+---@param distance number
+---@param curve string
+function api.playAudio(unit, soundKey, distance, curve)
+    unit.play_sound_with_dis_and_attenuation(soundKey, distance, curve)
+end
+
+---在指定坐标处播放声音
+---@param position Vector3
+---@param soundKey integer
+---@param duration number
+---@param volume number
+function api.playAudioAt(position, soundKey, duration, volume)
+    GameAPI.play_3d_sound(position, soundKey, duration, volume)
+end
+
 -- EXTRA =======================================================================
 local vector = {}
 local json = {}
